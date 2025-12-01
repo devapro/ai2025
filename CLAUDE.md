@@ -1,0 +1,199 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Build System
+
+This is a Gradle-based Kotlin JVM project using the Gradle Wrapper. Always use `./gradlew` (not `gradle`) for commands.
+
+**Core commands:**
+- `./gradlew run` - Build and run the Telegram bot application
+- `./gradlew build` - Build the project without running
+- `./gradlew check` - Run all checks including tests
+- `./gradlew test` - Run tests only
+- `./gradlew clean` - Clean build outputs
+
+**Test commands:**
+- `./gradlew test` - Run all tests
+- `./gradlew :utils:test` - Run tests for utils module only
+- `./gradlew :app:test` - Run tests for app module only
+
+**Docker commands:**
+- `cd docker && docker-compose up --build` - Build and run in Docker
+- `docker-compose logs -f` - View logs
+- `docker-compose down` - Stop the container
+
+## Configuration
+
+The application uses environment variables from a `.env` file:
+
+**Setup:**
+1. Copy `.env.example` to `.env`: `cp .env.example .env`
+2. Fill in required values in `.env`
+
+**Required variables:**
+- `OPENAI_API_KEY` - OpenAI API key for AI-powered conversations
+- `TELEGRAM_BOT_TOKEN` - Telegram bot token from @BotFather
+
+**Optional variables:**
+- `PROMPTS_DIR` - Directory for prompt files (default: `promts`)
+- `HISTORY_DIR` - Directory for conversation history (default: `history`)
+
+**Important files:**
+- `.env` - Configuration file with secrets (git-ignored)
+- `promts/system.md` - System prompt for AI agent (customizable)
+- `history/` - User conversation history (git-ignored, auto-created)
+
+## Project Architecture
+
+This is an AI-powered Telegram bot application with a modular architecture:
+
+**Module structure:**
+- `app/` - Main application module containing all bot logic
+  - Entry point: `io.github.devapro.ai.AppKt` (compiled from `App.kt`)
+  - Main class: `io.github.devapro.ai.main()`
+  - Depends on: `utils` module
+- `utils/` - Shared utilities module
+- `buildSrc/` - Convention plugins for shared build logic
+  - `kotlin-jvm.gradle.kts` - Shared Kotlin JVM configuration
+  - Configures: Java 21 toolchain, test logging with JUnit Platform
+
+**Component architecture (within app module):**
+- `bot/` - Telegram Bot component
+  - `TelegramBot.kt` - Handles Telegram API, user commands, message routing
+  - Commands: /start, /help, /clear
+  - Uses kotlin-telegram-bot library for Telegram integration
+- `agent/` - AI Agent component
+  - `AiAgent.kt` - Manages AI conversations using OpenAI API directly
+  - Uses Ktor HTTP client for API communication
+  - Handles conversation context and history
+  - Includes data classes for OpenAI request/response serialization
+- `repository/` - File Repository component
+  - `FileRepository.kt` - Manages prompts and conversation history
+  - Stores user history in markdown files: `history/user_{userId}.md`
+  - Reads system prompt from: `promts/system.md`
+
+**Key architectural patterns:**
+- Clean separation of concerns: Bot → Agent → Repository
+- File-based storage for prompts and history (markdown format)
+- Coroutines for async message processing
+- Convention plugins in `buildSrc` centralize build configuration
+- Version catalog in `gradle/libs.versions.toml` manages all dependency versions
+- Docker multi-stage build for production deployment
+
+## Technology Stack
+
+**Core:**
+- Kotlin 2.2.0 with JVM target
+- Java 21 toolchain (configured via convention plugin)
+- JUnit Platform for testing
+
+**Kotlin Ecosystem:**
+- kotlinx-datetime 0.6.1 - Date/time handling
+- kotlinx-serialization-json 1.7.3 - JSON serialization
+- kotlinx-coroutines 1.9.0 - Async/await coroutines support
+
+**AI & Automation:**
+- OpenAI API - Direct integration via Ktor HTTP client
+  - Uses gpt-4o-mini model by default
+  - Custom conversation management with history support
+  - Supports system prompts and message history
+
+**Integrations:**
+- kotlin-telegram-bot 6.3.0 - Telegram Bot API client
+  - Long polling for receiving messages
+  - Command handling (/start, /help, /clear)
+  - Chat actions (typing indicator)
+- Ktor 3.3.0 - HTTP client (used by Koog)
+  - CIO engine for async I/O
+  - Content negotiation for JSON
+
+**Configuration & Logging:**
+- dotenv-kotlin 6.5.1 - Environment variable management from `.env` files
+- SLF4J Simple 2.0.16 - Simple logging implementation
+
+**Repositories:**
+- Maven Central - Primary dependency source
+
+## Application Flow
+
+1. **Startup** (`App.kt`):
+   - Load environment variables from `.env`
+   - Initialize FileRepository (creates directories)
+   - Initialize AiAgent (with OpenAI API key)
+   - Initialize TelegramBot (with bot token)
+   - Start bot polling loop
+
+2. **Message Processing** (`TelegramBot.kt`):
+   - Receive user message
+   - Send typing indicator
+   - Call AiAgent to process message (async)
+   - Send response back to user
+
+3. **AI Processing** (`AiAgent.kt`):
+   - Get system prompt from FileRepository
+   - Load user's conversation history
+   - Build message list (system + history + current)
+   - Call OpenAI API via Ktor HTTP client
+   - Parse response and extract assistant message
+   - Save user message and response to history
+   - Return response
+
+4. **Storage** (`FileRepository.kt`):
+   - Read `promts/system.md` for system prompt
+   - Read/write `history/user_{userId}.md` for conversation history
+   - Parse markdown format with `## User:` and `## Assistant:` headers
+
+## Development Notes
+
+**When adding dependencies:**
+- Update `gradle/libs.versions.toml` first (add version, library declaration)
+- Reference using `libs.` notation in build files (e.g., `implementation(libs.koogAgents)`)
+- Consider creating bundles for related dependencies (e.g., `bundles.ktorClient`)
+
+**File organization:**
+- Application entry point: `app/src/main/kotlin/io/github/devapro/ai/App.kt`
+- Components in dedicated packages: `agent/`, `bot/`, `repository/`
+- Each component in its own file
+- Tests mirror source structure
+
+**Coding standards:**
+- Use `@Serializable` annotation on data classes that need JSON serialization
+- Use coroutines for async operations (`suspend` functions)
+- Use SLF4J logger for logging: `LoggerFactory.getLogger(ClassName::class.java)`
+- Follow Kotlin naming conventions
+
+**Conversation history format:**
+```markdown
+## User:
+*timestamp*
+
+message content
+
+---
+
+## Assistant:
+*timestamp*
+
+response content
+
+---
+```
+
+**Docker deployment:**
+- Multi-stage build: Gradle build → JRE runtime
+- Volumes mounted: `history/` and `promts/`
+- Environment variables passed from `.env` to container
+- Dockerfile location: `docker/Dockerfile`
+- Docker Compose config: `docker/docker-compose.yml`
+
+**When modifying prompts:**
+- Edit `promts/system.md` to change AI behavior
+- Changes take effect on next message (no restart needed in Docker due to volume mount)
+- Use markdown formatting for better readability
+
+**When debugging:**
+- Check logs: `docker-compose logs -f` (Docker) or console output (local)
+- Verify `.env` file exists and has correct values
+- Check `history/` directory for conversation files
+- Test OpenAI API key: ensure valid and has credits

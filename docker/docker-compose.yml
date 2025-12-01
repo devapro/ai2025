@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  telegram-bot:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: ai-telegram-bot
+    restart: unless-stopped
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - PROMPTS_DIR=/app/promts
+      - HISTORY_DIR=/app/history
+    volumes:
+      # Mount history directory to persist conversation history
+      - ../history:/app/history
+      # Mount prompts directory to allow updating prompts without rebuilding
+      - ../promts:/app/promts
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
