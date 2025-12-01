@@ -30,6 +30,8 @@ Ai1/
 │       │   └── TelegramBot.kt
 │       ├── repository/           # File storage component
 │       │   └── FileRepository.kt
+│       ├── di/                   # Dependency injection
+│       │   └── AppDi.kt
 │       └── App.kt                # Application entry point
 ├── utils/                        # Shared utilities module
 ├── buildSrc/                     # Gradle convention plugins
@@ -147,13 +149,17 @@ docker-compose down
 
 The application follows a modular architecture with clear separation of concerns:
 
+- **DI Layer** (`di/`): Koin dependency injection configuration in `AppDi.kt`
 - **Bot Component** (`bot/`): Handles Telegram API interactions and user commands
 - **Agent Component** (`agent/`): Manages AI conversations using OpenAI API directly via Ktor
 - **Repository Component** (`repository/`): Handles file-based storage for prompts and history
 
+All components are managed as singletons by Koin DI framework with automatic dependency resolution.
+
 ### Technology Stack
 
 - **Kotlin 2.2.0**: Primary programming language
+- **Koin 4.0.0**: Lightweight dependency injection framework
 - **OpenAI API**: Direct integration for AI-powered conversations (gpt-4o-mini)
 - **kotlin-telegram-bot 6.3.0**: Telegram Bot API client
 - **Ktor 3.3.0**: HTTP client for OpenAI API communication

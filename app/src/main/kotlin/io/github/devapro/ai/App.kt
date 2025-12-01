@@ -1,9 +1,12 @@
 package io.github.devapro.ai
 
-import io.github.cdimascio.dotenv.dotenv
 import io.github.devapro.ai.agent.AiAgent
 import io.github.devapro.ai.bot.TelegramBot
-import io.github.devapro.ai.repository.FileRepository
+import io.github.devapro.ai.di.allModules
+import org.koin.core.context.startKoin
+import org.koin.core.context.stopKoin
+import org.koin.logger.slf4jLogger
+import org.koin.mp.KoinPlatformTools
 import org.slf4j.LoggerFactory
 
 fun main() {
@@ -11,37 +14,30 @@ fun main() {
 
     logger.info("Starting AI Telegram Bot application...")
 
-    // Load environment variables
-    val dotenv = dotenv {
-        ignoreIfMissing = true
-    }
-
-    val openAiApiKey = dotenv["OPENAI_API_KEY"]
-        ?: throw IllegalStateException("OPENAI_API_KEY environment variable is required")
-
-    val telegramBotToken = dotenv["TELEGRAM_BOT_TOKEN"]
-        ?: throw IllegalStateException("TELEGRAM_BOT_TOKEN environment variable is required")
-
-    val promptsDir = dotenv["PROMPTS_DIR"] ?: "promts"
-    val historyDir = dotenv["HISTORY_DIR"] ?: "history"
-
     try {
-        // Initialize components
-        logger.info("Initializing components...")
+        // Start Koin DI
+        logger.info("Initializing Koin dependency injection...")
+        startKoin {
+            slf4jLogger()
+            modules(allModules)
+        }
+        logger.info("Koin initialized successfully")
 
-        val fileRepository = FileRepository(promptsDir, historyDir)
-        logger.info("FileRepository initialized")
+        // Get components from Koin
+        val koin = KoinPlatformTools.defaultContext().get()
 
-        val aiAgent = AiAgent(openAiApiKey, fileRepository)
-        logger.info("AI Agent initialized")
+        val telegramBot = koin.get<TelegramBot>()
+        logger.info("All components initialized via DI")
 
-        val telegramBot = TelegramBot(telegramBotToken, aiAgent)
-        logger.info("Telegram Bot initialized")
+        val aiAgent = koin.get<AiAgent>()
 
         // Add shutdown hook
         Runtime.getRuntime().addShutdownHook(Thread {
             logger.info("Shutting down...")
             telegramBot.stop()
+            aiAgent.close()
+            stopKoin()
+            logger.info("Application stopped")
         })
 
         // Start the bot
@@ -51,10 +47,9 @@ fun main() {
 
         // Keep the application running
         Thread.currentThread().join()
-
-        aiAgent.close()
     } catch (e: Exception) {
         logger.error("Fatal error: ${e.message}", e)
+        stopKoin()
         throw e
     }
 }

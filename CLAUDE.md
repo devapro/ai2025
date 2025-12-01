@@ -59,27 +59,36 @@ This is an AI-powered Telegram bot application with a modular architecture:
   - Configures: Java 21 toolchain, test logging with JUnit Platform
 
 **Component architecture (within app module):**
+- `di/` - Dependency Injection configuration
+  - `AppDi.kt` - Koin module definitions for all components
+  - Manages component lifecycle and dependencies
+  - Provides configuration values from environment variables
 - `bot/` - Telegram Bot component
   - `TelegramBot.kt` - Handles Telegram API, user commands, message routing
   - Commands: /start, /help, /clear
   - Uses kotlin-telegram-bot library for Telegram integration
+  - Injected as singleton via Koin
 - `agent/` - AI Agent component
   - `AiAgent.kt` - Manages AI conversations using OpenAI API directly
   - Uses Ktor HTTP client for API communication
   - Handles conversation context and history
   - Includes data classes for OpenAI request/response serialization
+  - Injected as singleton via Koin
 - `repository/` - File Repository component
   - `FileRepository.kt` - Manages prompts and conversation history
   - Stores user history in markdown files: `history/user_{userId}.md`
   - Reads system prompt from: `promts/system.md`
+  - Injected as singleton via Koin
 
 **Key architectural patterns:**
-- Clean separation of concerns: Bot → Agent → Repository
-- File-based storage for prompts and history (markdown format)
-- Coroutines for async message processing
-- Convention plugins in `buildSrc` centralize build configuration
-- Version catalog in `gradle/libs.versions.toml` manages all dependency versions
-- Docker multi-stage build for production deployment
+- **Dependency Injection**: All components managed by Koin DI framework
+- **Clean separation of concerns**: Bot → Agent → Repository
+- **Singleton pattern**: All main components are singletons managed by Koin
+- **File-based storage** for prompts and history (markdown format)
+- **Coroutines** for async message processing
+- **Convention plugins** in `buildSrc` centralize build configuration
+- **Version catalog** in `gradle/libs.versions.toml` manages all dependency versions
+- **Docker multi-stage build** for production deployment
 
 ## Technology Stack
 
@@ -108,6 +117,11 @@ This is an AI-powered Telegram bot application with a modular architecture:
   - CIO engine for async I/O
   - Content negotiation for JSON
 
+**Dependency Injection:**
+- Koin 4.0.0 - Lightweight dependency injection framework
+  - koin-core - Core DI functionality
+  - koin-logger-slf4j - SLF4J logging integration
+
 **Configuration & Logging:**
 - dotenv-kotlin 6.5.1 - Environment variable management from `.env` files
 - SLF4J Simple 2.0.16 - Simple logging implementation
@@ -118,10 +132,12 @@ This is an AI-powered Telegram bot application with a modular architecture:
 ## Application Flow
 
 1. **Startup** (`App.kt`):
-   - Load environment variables from `.env`
-   - Initialize FileRepository (creates directories)
-   - Initialize AiAgent (with OpenAI API key)
-   - Initialize TelegramBot (with bot token)
+   - Initialize Koin DI framework with `allModules`
+   - Koin loads environment variables via Dotenv
+   - Koin creates all components (FileRepository, AiAgent, TelegramBot) as singletons
+   - Components are wired automatically based on DI definitions in `AppDi.kt`
+   - Get TelegramBot from Koin container
+   - Register shutdown hook (stops bot, closes agent, stops Koin)
    - Start bot polling loop
 
 2. **Message Processing** (`TelegramBot.kt`):
@@ -153,6 +169,7 @@ This is an AI-powered Telegram bot application with a modular architecture:
 
 **File organization:**
 - Application entry point: `app/src/main/kotlin/io/github/devapro/ai/App.kt`
+- DI configuration: `app/src/main/kotlin/io/github/devapro/ai/di/AppDi.kt`
 - Components in dedicated packages: `agent/`, `bot/`, `repository/`
 - Each component in its own file
 - Tests mirror source structure
@@ -162,6 +179,9 @@ This is an AI-powered Telegram bot application with a modular architecture:
 - Use coroutines for async operations (`suspend` functions)
 - Use SLF4J logger for logging: `LoggerFactory.getLogger(ClassName::class.java)`
 - Follow Kotlin naming conventions
+- Define all dependencies in `AppDi.kt` using Koin DSL
+- Use constructor injection for all components (dependencies passed as constructor parameters)
+- Retrieve components from Koin using `koin.get<ComponentType>()`
 
 **Conversation history format:**
 ```markdown
@@ -197,3 +217,41 @@ response content
 - Verify `.env` file exists and has correct values
 - Check `history/` directory for conversation files
 - Test OpenAI API key: ensure valid and has credits
+- Koin logs dependency resolution during startup - check for DI errors
+
+## Dependency Injection (Koin)
+
+**DI Configuration** (`AppDi.kt`):
+The application uses Koin for dependency injection. All components are defined in `AppDi.kt`:
+
+```kotlin
+val appModule = module {
+    // Configuration layer - Dotenv and environment variables
+    single<Dotenv> { dotenv { ignoreIfMissing = true } }
+
+    // Named qualifiers for configuration values
+    single(named("openAiApiKey")) { get<Dotenv>()["OPENAI_API_KEY"] }
+    single(named("telegramBotToken")) { get<Dotenv>()["TELEGRAM_BOT_TOKEN"] }
+    single(named("promptsDir")) { get<Dotenv>()["PROMPTS_DIR"] ?: "promts" }
+    single(named("historyDir")) { get<Dotenv>()["HISTORY_DIR"] ?: "history" }
+
+    // Application components as singletons
+    single { FileRepository(get(named("promptsDir")), get(named("historyDir"))) }
+    single { AiAgent(get(named("openAiApiKey")), get()) }
+    single { TelegramBot(get(named("telegramBotToken")), get()) }
+}
+```
+
+**Adding new components:**
+1. Add component definition to `appModule` in `AppDi.kt`
+2. Use `single { }` for singletons, `factory { }` for new instances
+3. Use `get()` to resolve dependencies
+4. Use `named("qualifier")` for multiple instances of same type
+5. Retrieve component in `App.kt` using `koin.get<ComponentType>()`
+
+**DI Benefits:**
+- Automatic dependency resolution and lifecycle management
+- Easy testing with mock/test modules
+- Clear dependency graph in one place
+- No manual object instantiation or wiring
+- Centralized configuration management

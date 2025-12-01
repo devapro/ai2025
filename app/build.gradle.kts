@@ -26,6 +26,10 @@ dependencies {
     // Environment variables management
     implementation(libs.dotenv)
 
+    // Dependency Injection
+    implementation(libs.koinCore)
+    implementation(libs.koinLogger)
+
     // Logging
     implementation(libs.slf4jSimple)
 }

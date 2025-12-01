@@ -72,6 +72,11 @@ class TelegramBot(
                 val chatId = message.chat.id
                 val userMessage = text
 
+                // Ignore commands (they are handled by command handlers)
+                if (userMessage.startsWith("/")) {
+                    return@text
+                }
+
                 logger.info("Received message from user $chatId: $userMessage")
 
                 // Send typing indicator
