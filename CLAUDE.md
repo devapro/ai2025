@@ -67,11 +67,15 @@ This is an AI-powered Telegram bot application with a modular architecture:
   - `TelegramBot.kt` - Handles Telegram API, user commands, message routing
   - Commands: /start, /help, /clear
   - Uses kotlin-telegram-bot library for Telegram integration
+  - **Markdown support**: All messages sent with ParseMode.MARKDOWN
   - Injected as singleton via Koin
 - `agent/` - AI Agent component
   - `AiAgent.kt` - Manages AI conversations using OpenAI API directly
   - Uses Ktor HTTP client for API communication
   - Handles conversation context and history
+  - **JSON mode enabled**: Forces OpenAI to return structured JSON responses
+  - Parses JSON responses with title, shortAnswer, and answer fields
+  - Formats responses with markdown (title in bold, shortAnswer in italic)
   - Includes data classes for OpenAI request/response serialization
   - Injected as singleton via Koin
 - `repository/` - File Repository component
@@ -142,18 +146,23 @@ This is an AI-powered Telegram bot application with a modular architecture:
 
 2. **Message Processing** (`TelegramBot.kt`):
    - Receive user message
+   - Filter out commands (they have dedicated handlers)
    - Send typing indicator
    - Call AiAgent to process message (async)
-   - Send response back to user
+   - Send response back to user with ParseMode.MARKDOWN
 
 3. **AI Processing** (`AiAgent.kt`):
-   - Get system prompt from FileRepository
+   - Get system prompt from FileRepository (instructs AI to return JSON)
    - Load user's conversation history
    - Build message list (system + history + current)
-   - Call OpenAI API via Ktor HTTP client
-   - Parse response and extract assistant message
-   - Save user message and response to history
-   - Return response
+   - Call OpenAI API with `response_format: json_object` via Ktor HTTP client
+   - Parse JSON response (title, shortAnswer, answer fields)
+   - Format response with markdown:
+     - Title: `*bold*`
+     - Short answer: `_italic_`
+     - Full answer: with markdown formatting from AI
+   - Save user message and formatted response to history
+   - Return formatted markdown response
 
 4. **Storage** (`FileRepository.kt`):
    - Read `promts/system.md` for system prompt
@@ -209,8 +218,16 @@ response content
 
 **When modifying prompts:**
 - Edit `promts/system.md` to change AI behavior
+- System prompt instructs AI to return JSON with title, shortAnswer, and answer fields
+- AI is instructed to use Markdown formatting in the answer field
 - Changes take effect on next message (no restart needed in Docker due to volume mount)
-- Use markdown formatting for better readability
+- OpenAI API is configured with `response_format: json_object` to enforce JSON responses
+
+**Markdown formatting in responses:**
+- Bot sends all messages with `ParseMode.MARKDOWN`
+- AI responses are formatted: title (*bold*), shortAnswer (_italic_), answer (markdown from AI)
+- Commands (/start, /help, /clear) use markdown for better visual appearance
+- Supported markdown: *bold*, _italic_, `code`, [links](url), bullet lists
 
 **When debugging:**
 - Check logs: `docker-compose logs -f` (Docker) or console output (local)

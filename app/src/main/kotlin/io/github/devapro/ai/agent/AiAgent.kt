@@ -1,6 +1,5 @@
 package io.github.devapro.ai.agent
 
-import io.github.devapro.ai.repository.ConversationMessage
 import io.github.devapro.ai.repository.FileRepository
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -12,6 +11,7 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.slf4j.LoggerFactory
 
 /**
  * AI Agent component that handles conversations using OpenAI API
@@ -20,6 +20,8 @@ class AiAgent(
     private val apiKey: String,
     private val fileRepository: FileRepository
 ) {
+    private val logger = LoggerFactory.getLogger(AiAgent::class.java)
+
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json {
@@ -27,6 +29,11 @@ class AiAgent(
                 prettyPrint = true
             })
         }
+    }
+
+    private val jsonParser = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
     }
 
     /**
@@ -56,11 +63,12 @@ class AiAgent(
             add(OpenAIMessage(role = "user", content = userMessage))
         }
 
-        // Create request
+        // Create request with JSON mode enabled
         val request = OpenAIRequest(
             model = "gpt-4o-mini",
             messages = messages,
-            temperature = 0.7
+            temperature = 0.7,
+            responseFormat = ResponseFormat(type = "json_object")
         )
 
         // Call OpenAI API
@@ -70,14 +78,24 @@ class AiAgent(
             setBody(request)
         }.body<OpenAIResponse>()
 
-        val assistantResponse = response.choices.firstOrNull()?.message?.content
+        val rawResponse = response.choices.firstOrNull()?.message?.content
             ?: "Sorry, I couldn't generate a response."
+
+        logger.info(rawResponse)
+
+        // Parse JSON response and format it
+        val formattedResponse = try {
+            parseAndFormatResponse(rawResponse)
+        } catch (e: Exception) {
+            logger.warn("Failed to parse AI response as JSON, using raw response: ${e.message}")
+            rawResponse
+        }
 
         // Save messages to history
         fileRepository.saveUserMessage(userId, userMessage)
-        fileRepository.saveAssistantMessage(userId, assistantResponse)
+        fileRepository.saveAssistantMessage(userId, formattedResponse)
 
-        return assistantResponse
+        return formattedResponse
     }
 
     /**
@@ -87,10 +105,69 @@ class AiAgent(
         fileRepository.clearUserHistory(userId)
     }
 
+    /**
+     * Parse JSON response from AI and format it for display
+     */
+    private fun parseAndFormatResponse(rawResponse: String): String {
+        // Try to extract JSON from potential markdown code block
+        val jsonContent = if (rawResponse.contains("```json")) {
+            rawResponse
+                .substringAfter("```json")
+                .substringBefore("```")
+                .trim()
+        } else if (rawResponse.contains("```")) {
+            rawResponse
+                .substringAfter("```")
+                .substringBefore("```")
+                .trim()
+        } else {
+            rawResponse.trim()
+        }
+
+        // Parse the JSON
+        val aiResponse = jsonParser.decodeFromString<AiResponse>(jsonContent)
+
+        // Get short answer/description (support both field names)
+        val shortText = aiResponse.shortAnswer ?: aiResponse.shortDescription
+
+        // Handle empty response
+        if (aiResponse.title.isNullOrBlank() && shortText.isNullOrBlank() && aiResponse.answer.isNullOrBlank()) {
+            return "I don't have enough information to answer that question properly."
+        }
+
+        // Format the response with markdown
+        return buildString {
+            if (!aiResponse.title.isNullOrBlank()) {
+                append("*${aiResponse.title}*\n\n")
+            }
+            if (!shortText.isNullOrBlank()) {
+                append("_${shortText}_\n\n")
+            }
+            if (!aiResponse.answer.isNullOrBlank()) {
+                append(aiResponse.answer)
+            }
+        }.trim()
+    }
+
     fun close() {
         client.close()
     }
 }
+
+/**
+ * AI response structure from JSON
+ */
+@Serializable
+data class AiResponse(
+    @SerialName("title")
+    val title: String? = null,
+    @SerialName("shortAnswer")
+    val shortAnswer: String? = null,
+    @SerialName("shortDescription")  // Support both field names
+    val shortDescription: String? = null,
+    @SerialName("answer")
+    val answer: String? = null
+)
 
 @Serializable
 data class OpenAIMessage(
@@ -107,7 +184,15 @@ data class OpenAIRequest(
     @SerialName("messages")
     val messages: List<OpenAIMessage>,
     @SerialName("temperature")
-    val temperature: Double
+    val temperature: Double,
+    @SerialName("response_format")
+    val responseFormat: ResponseFormat? = null
+)
+
+@Serializable
+data class ResponseFormat(
+    @SerialName("type")
+    val type: String  // "json_object" or "text"
 )
 
 @Serializable

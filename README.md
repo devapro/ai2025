@@ -4,7 +4,9 @@ An AI-powered Telegram bot that uses OpenAI's API to provide intelligent respons
 
 ## Features
 
-- **AI-Powered Responses**: Uses OpenAI's GPT models via direct API integration
+- **AI-Powered Responses**: Uses OpenAI's GPT models via direct API integration with JSON mode
+- **Markdown Formatting**: All responses support rich markdown formatting (bold, italic, code, lists, links)
+- **Structured Responses**: AI returns structured JSON with title, short answer, and detailed answer
 - **Conversation History**: Maintains separate conversation history for each user
 - **Persistent Storage**: Stores conversation history and prompts in markdown files
 - **Docker Support**: Fully containerized with Docker and Docker Compose
@@ -109,9 +111,13 @@ docker-compose down
 
 1. Start a conversation with your bot on Telegram
 2. Send `/start` to initialize the bot
-3. Send any message and the bot will respond using AI
-4. Use `/clear` to clear your conversation history
-5. Use `/help` to see available commands
+3. Send any message and the bot will respond using AI with formatted markdown
+4. AI responses include:
+   - **Title** in bold
+   - _Short summary_ in italic
+   - Full answer with rich markdown formatting
+5. Use `/clear` to clear your conversation history
+6. Use `/help` to see available commands
 
 ### Available Commands
 

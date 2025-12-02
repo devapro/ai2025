@@ -5,6 +5,7 @@ import com.github.kotlintelegrambot.dispatch
 import com.github.kotlintelegrambot.dispatcher.command
 import com.github.kotlintelegrambot.dispatcher.text
 import com.github.kotlintelegrambot.entities.ChatId
+import com.github.kotlintelegrambot.entities.ParseMode
 import io.github.devapro.ai.agent.AiAgent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,13 +32,14 @@ class TelegramBot(
                 bot.sendMessage(
                     chatId = chatId,
                     text = """
-                        Welcome! I'm an AI assistant bot.
+                        *Welcome!* I'm an AI assistant bot.
 
                         You can:
-                        - Send me any message and I'll respond
-                        - Use /clear to clear conversation history
-                        - Use /help to see this message again
-                    """.trimIndent()
+                        • Send me any message and I'll respond
+                        • Use /clear to clear conversation history
+                        • Use /help to see this message again
+                    """.trimIndent(),
+                    parseMode = ParseMode.MARKDOWN
                 )
             }
 
@@ -47,13 +49,15 @@ class TelegramBot(
                 bot.sendMessage(
                     chatId = chatId,
                     text = """
-                        Available commands:
+                        *Available commands:*
+
                         /start - Start conversation
                         /help - Show this help message
                         /clear - Clear conversation history
 
                         Just send me any message and I'll respond!
-                    """.trimIndent()
+                    """.trimIndent(),
+                    parseMode = ParseMode.MARKDOWN
                 )
             }
 
@@ -63,7 +67,8 @@ class TelegramBot(
                 aiAgent.clearHistory(chatId)
                 bot.sendMessage(
                     chatId = ChatId.fromId(chatId),
-                    text = "Conversation history cleared!"
+                    text = "✅ *Conversation history cleared!*",
+                    parseMode = ParseMode.MARKDOWN
                 )
             }
 
@@ -88,9 +93,11 @@ class TelegramBot(
                         val response = aiAgent.processMessage(chatId, userMessage)
                         logger.info("Sending response to user $chatId")
 
+                        // Send with Markdown formatting
                         bot.sendMessage(
                             chatId = ChatId.fromId(chatId),
-                            text = response
+                            text = response,
+                            parseMode = ParseMode.MARKDOWN
                         )
                     } catch (e: Exception) {
                         logger.error("Error processing message: ${e.message}", e)
