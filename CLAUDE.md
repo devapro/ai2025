@@ -65,7 +65,8 @@ This is an AI-powered Telegram bot application with a modular architecture:
   - Provides configuration values from environment variables
 - `bot/` - Telegram Bot component
   - `TelegramBot.kt` - Handles Telegram API, user commands, message routing
-  - Commands: /start, /help, /clear
+  - Commands: /start, /help, /plan, /clear
+  - `/plan`: Activates planning mode for creating development plans
   - Uses kotlin-telegram-bot library for Telegram integration
   - **Markdown support**: All messages sent with ParseMode.MARKDOWN
   - Injected as singleton via Koin
@@ -74,8 +75,13 @@ This is an AI-powered Telegram bot application with a modular architecture:
   - Uses Ktor HTTP client for API communication
   - Handles conversation context and history
   - **JSON mode enabled**: Forces OpenAI to return structured JSON responses
-  - Parses JSON responses with title, shortAnswer, and answer fields
-  - Formats responses with markdown (title in bold, shortAnswer in italic)
+  - **Response types**: Supports three response types:
+    - `answer`: Standard Q&A responses
+    - `question`: Clarifying questions for planning mode
+    - `plan`: Detailed development plans
+  - Parses JSON responses with type, title, shortAnswer, and answer fields
+  - Formats responses with markdown based on type
+  - **Planning Agent**: Interactive mode that asks questions to gather requirements
   - Includes data classes for OpenAI request/response serialization
   - Injected as singleton via Koin
 - `repository/` - File Repository component
@@ -152,15 +158,15 @@ This is an AI-powered Telegram bot application with a modular architecture:
    - Send response back to user with ParseMode.MARKDOWN
 
 3. **AI Processing** (`AiAgent.kt`):
-   - Get system prompt from FileRepository (instructs AI to return JSON)
+   - Get system prompt from FileRepository (instructs AI to return JSON with type field)
    - Load user's conversation history
    - Build message list (system + history + current)
    - Call OpenAI API with `response_format: json_object` via Ktor HTTP client
-   - Parse JSON response (title, shortAnswer, answer fields)
-   - Format response with markdown:
-     - Title: `*bold*`
-     - Short answer: `_italic_`
-     - Full answer: with markdown formatting from AI
+   - Parse JSON response (type, title, shortAnswer, answer fields)
+   - Format response based on type:
+     - `answer`: Standard format with title and answer
+     - `question`: ❓ emoji + prompt for more information
+     - `plan`: 📋 emoji + separator + detailed plan
    - Save user message and formatted response to history
    - Return formatted markdown response
 
@@ -218,7 +224,11 @@ response content
 
 **When modifying prompts:**
 - Edit `promts/system.md` to change AI behavior
-- System prompt instructs AI to return JSON with title, shortAnswer, and answer fields
+- System prompt instructs AI to return JSON with type, title, shortAnswer, and answer fields
+- **Planning Agent instructions** are included in system prompt:
+  - Detect when user wants a development plan
+  - Ask clarifying questions to gather requirements
+  - Generate comprehensive plans when enough information collected
 - AI is instructed to use Markdown formatting in the answer field
 - Changes take effect on next message (no restart needed in Docker due to volume mount)
 - OpenAI API is configured with `response_format: json_object` to enforce JSON responses

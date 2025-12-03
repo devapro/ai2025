@@ -127,25 +127,47 @@ class AiAgent(
         // Parse the JSON
         val aiResponse = jsonParser.decodeFromString<AiResponse>(jsonContent)
 
-        // Get short answer/description (support both field names)
-        val shortText = aiResponse.shortAnswer ?: aiResponse.shortDescription
-
         // Handle empty response
-        if (aiResponse.title.isNullOrBlank() && shortText.isNullOrBlank() && aiResponse.answer.isNullOrBlank()) {
+        if (aiResponse.text.isNullOrBlank()) {
             return "I don't have enough information to answer that question properly."
         }
 
-        // Format the response with markdown
+        // Format the response based on type
+        return when (aiResponse.type) {
+            "question" -> formatQuestionResponse(aiResponse)
+            "plan" -> formatPlanResponse(aiResponse)
+            else -> formatStandardResponse(aiResponse)
+        }
+    }
+
+    /**
+     * Format standard answer response
+     */
+    private fun formatStandardResponse(aiResponse: AiResponse): String {
+        return aiResponse.text ?: ""
+    }
+
+    /**
+     * Format question response (gathering requirements)
+     */
+    private fun formatQuestionResponse(aiResponse: AiResponse): String {
         return buildString {
-            if (!aiResponse.title.isNullOrBlank()) {
-                append("*${aiResponse.title}*\n\n")
+            append("❓ *Gathering Information*\n\n")
+            append(aiResponse.text ?: "")
+            if (aiResponse.questionsAsked != null && aiResponse.questionsAsked > 0) {
+                append("\n\n_Please answer the question above so I can create a comprehensive plan for you._")
             }
-            if (!shortText.isNullOrBlank()) {
-                append("_${shortText}_\n\n")
-            }
-            if (!aiResponse.answer.isNullOrBlank()) {
-                append(aiResponse.answer)
-            }
+        }.trim()
+    }
+
+    /**
+     * Format development plan response
+     */
+    private fun formatPlanResponse(aiResponse: AiResponse): String {
+        return buildString {
+            append("📋 *Development Plan*\n\n")
+            append("---\n\n")
+            append(aiResponse.text ?: "")
         }.trim()
     }
 
@@ -159,14 +181,12 @@ class AiAgent(
  */
 @Serializable
 data class AiResponse(
-    @SerialName("title")
-    val title: String? = null,
-    @SerialName("shortAnswer")
-    val shortAnswer: String? = null,
-    @SerialName("shortDescription")  // Support both field names
-    val shortDescription: String? = null,
-    @SerialName("answer")
-    val answer: String? = null
+    @SerialName("type")
+    val type: String? = "answer",  // "answer", "question", or "plan"
+    @SerialName("text")
+    val text: String? = null,
+    @SerialName("questionsAsked")
+    val questionsAsked: Int? = null
 )
 
 @Serializable

@@ -36,6 +36,7 @@ class TelegramBot(
 
                         You can:
                         • Send me any message and I'll respond
+                        • Use /plan to create software development plans
                         • Use /clear to clear conversation history
                         • Use /help to see this message again
                     """.trimIndent(),
@@ -53,9 +54,28 @@ class TelegramBot(
 
                         /start - Start conversation
                         /help - Show this help message
+                        /plan - Create development plan (interactive)
                         /clear - Clear conversation history
 
                         Just send me any message and I'll respond!
+                    """.trimIndent(),
+                    parseMode = ParseMode.MARKDOWN
+                )
+            }
+
+            // Handle /plan command
+            command("plan") {
+                val chatId = message.chat.id
+                bot.sendMessage(
+                    chatId = ChatId.fromId(chatId),
+                    text = """
+                        📋 *Planning Mode Activated*
+
+                        I'll help you create a detailed software development plan!
+
+                        To get started, please describe your project idea or what you want to build.
+
+                        I'll ask you clarifying questions to gather all necessary information, and then provide you with a comprehensive implementation plan.
                     """.trimIndent(),
                     parseMode = ParseMode.MARKDOWN
                 )

@@ -5,6 +5,7 @@ An AI-powered Telegram bot that uses OpenAI's API to provide intelligent respons
 ## Features
 
 - **AI-Powered Responses**: Uses OpenAI's GPT models via direct API integration with JSON mode
+- **Planning Agent**: Interactive software development planning - asks questions, gathers requirements, creates detailed implementation plans
 - **Markdown Formatting**: All responses support rich markdown formatting (bold, italic, code, lists, links)
 - **Structured Responses**: AI returns structured JSON with title, short answer, and detailed answer
 - **Conversation History**: Maintains separate conversation history for each user
@@ -123,7 +124,28 @@ docker-compose down
 
 - `/start` - Start conversation with the bot
 - `/help` - Show help message with available commands
+- `/plan` - Activate planning mode to create detailed software development plans
 - `/clear` - Clear conversation history
+
+### Planning Mode
+
+The bot includes a specialized **Planning Agent** that helps you create comprehensive software development plans:
+
+1. **Activate Planning Mode**: Send `/plan` or ask "create a development plan for..."
+2. **Describe Your Idea**: Tell the bot what you want to build
+3. **Answer Questions**: The agent will ask clarifying questions about:
+   - Project requirements and goals
+   - Target platform and users
+   - Technology preferences
+   - Key features
+   - Timeline and constraints
+4. **Receive Your Plan**: Once enough information is gathered, receive a detailed plan including:
+   - Technology stack with justifications
+   - Architecture design
+   - Implementation phases with tasks
+   - Timeline estimates
+   - Risk assessment
+   - Testing and deployment strategies
 
 ## Development
 
@@ -166,13 +188,20 @@ All components are managed as singletons by Koin DI framework with automatic dep
 
 - **Kotlin 2.2.0**: Primary programming language
 - **Koin 4.0.0**: Lightweight dependency injection framework
-- **OpenAI API**: Direct integration for AI-powered conversations (gpt-4o-mini)
+- **OpenAI API**: Direct integration for AI-powered conversations (gpt-4o-mini with JSON mode)
 - **kotlin-telegram-bot 6.3.0**: Telegram Bot API client
 - **Ktor 3.3.0**: HTTP client for OpenAI API communication
 - **kotlinx-coroutines**: Async/await support
 - **kotlinx-serialization**: JSON serialization for API requests/responses
 - **dotenv-kotlin**: Environment variable management
 - **Gradle**: Build system with multi-module setup
+
+### AI Capabilities
+
+- **General Assistant**: Answers questions, provides information, engages in conversation
+- **Planning Agent**: Creates detailed software development plans through interactive questioning
+- **Context Awareness**: Maintains conversation history for coherent multi-turn dialogues
+- **Structured Output**: Returns responses as JSON with type classification (answer/question/plan)
 
 ## Configuration
 
