@@ -75,7 +75,7 @@ class AiAgent(
         val request = OpenAIRequest(
             model = "gpt-4o-mini",
             messages = messages,
-            temperature = 0.7,
+            temperature = 1.2,
             responseFormat = ResponseFormat(type = "json_object")
         )
 
@@ -143,7 +143,7 @@ class AiAgent(
         // Format the response based on type
         return when (aiResponse.type) {
             "question" -> formatQuestionResponse(aiResponse)
-            "plan" -> formatPlanResponse(aiResponse)
+            "script" -> formatScriptResponse(aiResponse)
             else -> formatStandardResponse(aiResponse)
         }
     }
@@ -163,17 +163,17 @@ class AiAgent(
             append("❓ *Gathering Information*\n\n")
             append(aiResponse.text ?: "")
             if (aiResponse.questionsAsked != null && aiResponse.questionsAsked > 0) {
-                append("\n\n_Please answer the question above so I can create a comprehensive plan for you._")
+                append("\n\n_Please answer the question above so I can create the bash script for you._")
             }
         }.trim()
     }
 
     /**
-     * Format development plan response
+     * Format bash script response
      */
-    private fun formatPlanResponse(aiResponse: AiResponse): String {
+    private fun formatScriptResponse(aiResponse: AiResponse): String {
         return buildString {
-            append("📋 *Development Plan*\n\n")
+            append("📝 *Bash Script*\n\n")
             append("---\n\n")
             append(aiResponse.text ?: "")
         }.trim()
@@ -190,7 +190,7 @@ class AiAgent(
 @Serializable
 data class AiResponse(
     @SerialName("type")
-    val type: String? = "answer",  // "answer", "question", or "plan"
+    val type: String? = "answer",  // "answer", "question", or "script"
     @SerialName("text")
     val text: String? = null,
     @SerialName("questionsAsked")

@@ -1,13 +1,14 @@
-# AI Telegram Bot
+# Bash Script Creation Assistant - Telegram Bot
 
-An AI-powered Telegram bot that uses OpenAI's API to provide intelligent responses to user messages. The bot maintains conversation history for each user and stores prompts in markdown files.
+An AI-powered Telegram bot that helps you create production-ready bash scripts. The bot collects requirements through interactive questioning and generates complete, well-documented bash scripts with proper error handling and best practices.
 
 ## Features
 
-- **AI-Powered Responses**: Uses OpenAI's GPT models via direct API integration with JSON mode
-- **Planning Agent**: Interactive software development planning - asks questions, gathers requirements, creates detailed implementation plans
-- **Markdown Formatting**: All responses support rich markdown formatting (bold, italic, code, lists, links)
-- **Structured Responses**: AI returns structured JSON with title, short answer, and detailed answer
+- **AI-Powered Script Generation**: Uses OpenAI's GPT models via direct API integration with JSON mode
+- **Interactive Requirements Gathering**: Asks targeted questions to understand your automation needs
+- **Production-Ready Scripts**: Generates bash scripts with proper error handling, input validation, and security best practices
+- **Markdown Formatting**: All responses support rich markdown formatting (bold, italic, code blocks, lists, links)
+- **Structured Responses**: AI returns structured JSON with response type and content
 - **Conversation History**: Maintains separate conversation history for each user
 - **Persistent Storage**: Stores conversation history and prompts in markdown files
 - **Docker Support**: Fully containerized with Docker and Docker Compose
@@ -114,40 +115,41 @@ docker-compose down
 
 1. Start a conversation with your bot on Telegram
 2. Send `/start` to initialize the bot
-3. Send any message and the bot will respond using AI with formatted markdown
-4. AI responses include:
-   - **Title** in bold
-   - _Short summary_ in italic
-   - Full answer with rich markdown formatting
-5. Use `/clear` to clear your conversation history
-6. Use `/help` to see available commands
+3. Describe what task you want to automate or send any message
+4. The bot will ask questions to understand your requirements
+5. Answer the questions to provide necessary details
+6. Receive a complete bash script with documentation
+7. Use `/clear` to clear your conversation history
+8. Use `/help` to see available commands
 
 ### Available Commands
 
 - `/start` - Start conversation with the bot
 - `/help` - Show help message with available commands
-- `/plan` - Activate planning mode to create detailed software development plans
+- `/script` - Activate script creation mode to create bash scripts
 - `/clear` - Clear conversation history
 
-### Planning Mode
+### Script Creation Mode
 
-The bot includes a specialized **Planning Agent** that helps you create comprehensive software development plans:
+The bot includes a specialized **Script Creation Agent** that helps you create production-ready bash scripts:
 
-1. **Activate Planning Mode**: Send `/plan` or ask "create a development plan for..."
-2. **Describe Your Idea**: Tell the bot what you want to build
+1. **Activate Script Mode**: Send `/script` or ask "create a bash script that..."
+2. **Describe Your Task**: Tell the bot what you want to automate
 3. **Answer Questions**: The agent will ask clarifying questions about:
-   - Project requirements and goals
-   - Target platform and users
-   - Technology preferences
-   - Key features
-   - Timeline and constraints
-4. **Receive Your Plan**: Once enough information is gathered, receive a detailed plan including:
-   - Technology stack with justifications
-   - Architecture design
-   - Implementation phases with tasks
-   - Timeline estimates
-   - Risk assessment
-   - Testing and deployment strategies
+   - Task purpose and requirements
+   - Inputs and outputs
+   - Environment (OS, available tools)
+   - Error handling preferences
+   - Security considerations
+   - Edge cases to handle
+4. **Receive Your Script**: Once enough information is gathered, receive a complete bash script including:
+   - Proper shebang and error handling (set -euo pipefail)
+   - Input validation and argument parsing
+   - Usage documentation and help function
+   - Color-coded logging functions
+   - Inline comments for complex logic
+   - Security best practices (proper quoting, validation)
+   - Testing examples
 
 ## Development
 
@@ -201,9 +203,11 @@ All components are managed as singletons by Koin DI framework with automatic dep
 ### AI Capabilities
 
 - **General Assistant**: Answers questions, provides information, engages in conversation
-- **Planning Agent**: Creates detailed software development plans through interactive questioning
+- **Script Creation Agent**: Creates production-ready bash scripts through interactive questioning
 - **Context Awareness**: Maintains conversation history for coherent multi-turn dialogues
-- **Structured Output**: Returns responses as JSON with type classification (answer/question/plan)
+- **Structured Output**: Returns responses as JSON with type classification (answer/question/script)
+- **Best Practices**: Generates scripts following bash best practices (shellcheck compatible)
+- **Security Focus**: Includes input validation, proper quoting, and error handling
 
 ## Configuration
 

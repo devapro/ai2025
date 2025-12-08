@@ -32,11 +32,11 @@ class TelegramBot(
                 bot.sendMessage(
                     chatId = chatId,
                     text = """
-                        *Welcome!* I'm an AI assistant bot.
+                        *Welcome!* I'm a Bash Script Creation Assistant.
 
                         You can:
                         • Send me any message and I'll respond
-                        • Use /plan to create software development plans
+                        • Use /script to create bash scripts
                         • Use /clear to clear conversation history
                         • Use /help to see this message again
                     """.trimIndent(),
@@ -54,7 +54,7 @@ class TelegramBot(
 
                         /start - Start conversation
                         /help - Show this help message
-                        /plan - Create development plan (interactive)
+                        /script - Create bash script (interactive)
                         /clear - Clear conversation history
 
                         Just send me any message and I'll respond!
@@ -63,19 +63,19 @@ class TelegramBot(
                 )
             }
 
-            // Handle /plan command
-            command("plan") {
+            // Handle /script command
+            command("script") {
                 val chatId = message.chat.id
                 bot.sendMessage(
                     chatId = ChatId.fromId(chatId),
                     text = """
-                        📋 *Planning Mode Activated*
+                        📝 *Script Creation Mode Activated*
 
-                        I'll help you create a detailed software development plan!
+                        I'll help you create a production-ready bash script!
 
-                        To get started, please describe your project idea or what you want to build.
+                        To get started, please describe what task you want to automate or what the script should do.
 
-                        I'll ask you clarifying questions to gather all necessary information, and then provide you with a comprehensive implementation plan.
+                        I'll ask you clarifying questions to gather all necessary information about inputs, outputs, error handling, and more. Then I'll provide you with a complete bash script.
                     """.trimIndent(),
                     parseMode = ParseMode.MARKDOWN
                 )

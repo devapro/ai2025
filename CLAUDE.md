@@ -47,7 +47,7 @@ The application uses environment variables from a `.env` file:
 
 ## Project Architecture
 
-This is an AI-powered Telegram bot application with a modular architecture:
+This is a Bash Script Creation Assistant implemented as a Telegram bot with a modular architecture:
 
 **Module structure:**
 - `app/` - Main application module containing all bot logic
@@ -66,8 +66,8 @@ This is an AI-powered Telegram bot application with a modular architecture:
   - Provides configuration values from environment variables
 - `bot/` - Telegram Bot component
   - `TelegramBot.kt` - Handles Telegram API, user commands, message routing
-  - Commands: /start, /help, /plan, /clear
-  - `/plan`: Activates planning mode for creating development plans
+  - Commands: /start, /help, /script, /clear
+  - `/script`: Activates script creation mode for generating bash scripts
   - Uses kotlin-telegram-bot library for Telegram integration
   - **Markdown support**: All messages sent with ParseMode.MARKDOWN
   - Injected as singleton via Koin
@@ -78,11 +78,11 @@ This is an AI-powered Telegram bot application with a modular architecture:
   - **JSON mode enabled**: Forces OpenAI to return structured JSON responses
   - **Response types**: Supports three response types:
     - `answer`: Standard Q&A responses
-    - `question`: Clarifying questions for planning mode
-    - `plan`: Detailed development plans
-  - Parses JSON responses with type, title, shortAnswer, and answer fields
+    - `question`: Clarifying questions for script requirements
+    - `script`: Complete bash scripts with documentation
+  - Parses JSON responses with type, text, and questionsAsked fields
   - Formats responses with markdown based on type
-  - **Planning Agent**: Interactive mode that asks questions to gather requirements
+  - **Script Creation Agent**: Interactive mode that asks questions to gather bash script requirements
   - Includes data classes for OpenAI request/response serialization
   - Injected as singleton via Koin
 - `repository/` - File Repository component
@@ -169,7 +169,7 @@ This is an AI-powered Telegram bot application with a modular architecture:
    - Format response based on type:
      - `answer`: Standard text response
      - `question`: ❓ emoji + text with prompt for more information
-     - `plan`: 📋 emoji + separator + detailed plan
+     - `script`: 📝 emoji + separator + complete bash script
    - Save user message and formatted response to history
    - Return formatted markdown response
 
@@ -230,20 +230,22 @@ response content
 - Edit `promts/system.md` to change AI behavior and response structure
 - Edit `promts/assistant.md` to customize the initial greeting message shown to new users
 - System prompt instructs AI to return JSON with type, text, and questionsAsked fields
-- **Planning Agent instructions** are included in system prompt:
-  - Detect when user wants a development plan
-  - Ask clarifying questions to gather requirements
-  - Generate comprehensive plans when enough information collected
+- **Script Creation Agent instructions** are included in system prompt:
+  - Detect when user wants a bash script
+  - Ask clarifying questions to gather requirements (inputs, outputs, error handling, security)
+  - Generate production-ready bash scripts when enough information collected
 - AI is instructed to use Markdown formatting in the text field
+- AI is instructed to follow bash best practices (shellcheck compatible)
 - Changes take effect on next message (no restart needed in Docker due to volume mount)
 - OpenAI API is configured with `response_format: json_object` to enforce JSON responses
 
 **Markdown formatting in responses:**
 - Bot sends all messages with `ParseMode.MARKDOWN`
-- AI responses use markdown formatting based on type (answer, question, plan)
+- AI responses use markdown formatting based on type (answer, question, script)
 - Assistant prompt shown at start of new conversations (from `promts/assistant.md`)
-- Commands (/start, /help, /clear, /plan) use markdown for better visual appearance
-- Supported markdown: *bold*, _italic_, `code`, [links](url), bullet lists
+- Commands (/start, /help, /clear, /script) use markdown for better visual appearance
+- Bash scripts are formatted in code blocks with syntax highlighting
+- Supported markdown: *bold*, _italic*, `code`, ```bash code blocks```, [links](url), bullet lists
 
 **When debugging:**
 - Check logs: `docker-compose logs -f` (Docker) or console output (local)
