@@ -54,6 +54,14 @@ class AiAgent(
             // Add system message
             add(OpenAIMessage(role = "system", content = systemPrompt))
 
+            // Add assistant prompt to guide behavior
+            if (history.isEmpty()) {
+                add(OpenAIMessage(
+                    role = "assistant",
+                    content = fileRepository.getAssistantPrompt()
+                ))
+            }
+
             // Add conversation history
             history.forEach { msg ->
                 add(OpenAIMessage(role = msg.role, content = msg.content))
@@ -205,6 +213,8 @@ data class OpenAIRequest(
     val messages: List<OpenAIMessage>,
     @SerialName("temperature")
     val temperature: Double,
+    @SerialName("top_p")
+    val topP: Double? = null,
     @SerialName("response_format")
     val responseFormat: ResponseFormat? = null
 )

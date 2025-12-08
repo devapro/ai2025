@@ -42,7 +42,8 @@ Ai1/
 │   ├── Dockerfile
 │   └── docker-compose.yml
 ├── promts/                       # Prompt templates (markdown files)
-│   └── system.md
+│   ├── system.md                 # System prompt for AI behavior
+│   └── assistant.md              # Assistant greeting for new conversations
 └── history/                      # User conversation history (git-ignored)
 ```
 
@@ -69,9 +70,10 @@ OPENAI_API_KEY=your_openai_api_key_here
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 ```
 
-### 3. Customize the system prompt (optional)
+### 3. Customize the prompts (optional)
 
 Edit `promts/system.md` to customize the AI assistant's behavior and personality.
+Edit `promts/assistant.md` to customize the initial greeting message shown to new users.
 
 ## Running the Application
 

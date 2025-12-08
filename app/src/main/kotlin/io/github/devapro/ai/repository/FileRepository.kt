@@ -31,6 +31,18 @@ class FileRepository(
     }
 
     /**
+     * Read assistant prompt from markdown file
+     */
+    fun getAssistantPrompt(): String {
+        val promptFile = File(promptsDir, "assistant.md")
+        return if (promptFile.exists()) {
+            promptFile.readText()
+        } else {
+            "I'm ready to assist you! How can I help you today?"
+        }
+    }
+
+    /**
      * Get conversation history for a specific user
      * @param userId Telegram user ID
      * @return List of conversation messages

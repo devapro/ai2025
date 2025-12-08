@@ -42,6 +42,7 @@ The application uses environment variables from a `.env` file:
 **Important files:**
 - `.env` - Configuration file with secrets (git-ignored)
 - `promts/system.md` - System prompt for AI agent (customizable)
+- `promts/assistant.md` - Assistant prompt shown at start of conversation (customizable)
 - `history/` - User conversation history (git-ignored, auto-created)
 
 ## Project Architecture
@@ -88,6 +89,7 @@ This is an AI-powered Telegram bot application with a modular architecture:
   - `FileRepository.kt` - Manages prompts and conversation history
   - Stores user history in markdown files: `history/user_{userId}.md`
   - Reads system prompt from: `promts/system.md`
+  - Reads assistant prompt from: `promts/assistant.md`
   - Injected as singleton via Koin
 
 **Key architectural patterns:**
@@ -160,18 +162,20 @@ This is an AI-powered Telegram bot application with a modular architecture:
 3. **AI Processing** (`AiAgent.kt`):
    - Get system prompt from FileRepository (instructs AI to return JSON with type field)
    - Load user's conversation history
-   - Build message list (system + history + current)
+   - Build message list (system + assistant prompt if first message + history + current)
+   - Assistant prompt loaded from `promts/assistant.md` for new conversations
    - Call OpenAI API with `response_format: json_object` via Ktor HTTP client
-   - Parse JSON response (type, title, shortAnswer, answer fields)
+   - Parse JSON response (type, text, questionsAsked fields)
    - Format response based on type:
-     - `answer`: Standard format with title and answer
-     - `question`: ❓ emoji + prompt for more information
+     - `answer`: Standard text response
+     - `question`: ❓ emoji + text with prompt for more information
      - `plan`: 📋 emoji + separator + detailed plan
    - Save user message and formatted response to history
    - Return formatted markdown response
 
 4. **Storage** (`FileRepository.kt`):
    - Read `promts/system.md` for system prompt
+   - Read `promts/assistant.md` for assistant prompt (shown to new users)
    - Read/write `history/user_{userId}.md` for conversation history
    - Parse markdown format with `## User:` and `## Assistant:` headers
 
@@ -223,20 +227,22 @@ response content
 - Docker Compose config: `docker/docker-compose.yml`
 
 **When modifying prompts:**
-- Edit `promts/system.md` to change AI behavior
-- System prompt instructs AI to return JSON with type, title, shortAnswer, and answer fields
+- Edit `promts/system.md` to change AI behavior and response structure
+- Edit `promts/assistant.md` to customize the initial greeting message shown to new users
+- System prompt instructs AI to return JSON with type, text, and questionsAsked fields
 - **Planning Agent instructions** are included in system prompt:
   - Detect when user wants a development plan
   - Ask clarifying questions to gather requirements
   - Generate comprehensive plans when enough information collected
-- AI is instructed to use Markdown formatting in the answer field
+- AI is instructed to use Markdown formatting in the text field
 - Changes take effect on next message (no restart needed in Docker due to volume mount)
 - OpenAI API is configured with `response_format: json_object` to enforce JSON responses
 
 **Markdown formatting in responses:**
 - Bot sends all messages with `ParseMode.MARKDOWN`
-- AI responses are formatted: title (*bold*), shortAnswer (_italic_), answer (markdown from AI)
-- Commands (/start, /help, /clear) use markdown for better visual appearance
+- AI responses use markdown formatting based on type (answer, question, plan)
+- Assistant prompt shown at start of new conversations (from `promts/assistant.md`)
+- Commands (/start, /help, /clear, /plan) use markdown for better visual appearance
 - Supported markdown: *bold*, _italic_, `code`, [links](url), bullet lists
 
 **When debugging:**
