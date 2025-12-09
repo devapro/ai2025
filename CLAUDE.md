@@ -47,7 +47,7 @@ The application uses environment variables from a `.env` file:
 
 ## Project Architecture
 
-This is a Russian-to-Serbian Translation Bot implemented as a Telegram bot with a modular architecture:
+This is an AI Assistant Telegram Bot implemented with a modular architecture:
 
 **Module structure:**
 - `app/` - Main application module containing all bot logic
@@ -71,17 +71,16 @@ This is a Russian-to-Serbian Translation Bot implemented as a Telegram bot with 
   - **Markdown support**: All messages sent with ParseMode.MARKDOWN
   - Injected as singleton via Koin
 - `agent/` - AI Agent component
-  - `AiAgent.kt` - Manages AI translation using OpenAI API directly
+  - `AiAgent.kt` - Manages AI conversations using OpenAI API directly
   - Uses Ktor HTTP client for API communication
   - Handles conversation context and history
   - **JSON mode enabled**: Forces OpenAI to return structured JSON responses
-  - **Response format**: Translation response with fields:
-    - `type`: Always "translation"
-    - `original`: Original Russian text (corrected if needed)
-    - `translation`: Serbian translation
-    - `notes`: Optional translation notes
+  - **Response format**: Answer response with fields:
+    - `type`: Always "answer"
+    - `text`: Full answer text with markdown formatting
+    - `summary`: Optional one-line summary
   - Parses JSON responses and formats with markdown
-  - **Translation Agent**: Professional Russian-to-Serbian translator
+  - **General AI Assistant**: Answers questions, provides explanations, offers advice
   - **Performance tracking**: Measures response time and token usage
   - Includes data classes for OpenAI request/response serialization
   - Injected as singleton via Koin
@@ -160,7 +159,7 @@ This is a Russian-to-Serbian Translation Bot implemented as a Telegram bot with 
    - Send response back to user with ParseMode.MARKDOWN
 
 3. **AI Processing** (`AiAgent.kt`):
-   - Get system prompt from FileRepository (instructs AI to return JSON translation format)
+   - Get system prompt from FileRepository (instructs AI to return JSON answer format)
    - Load user's conversation history
    - Build message list (system + assistant prompt if first message + history + current)
    - Assistant prompt loaded from `promts/assistant.md` for new conversations
@@ -168,13 +167,11 @@ This is a Russian-to-Serbian Translation Bot implemented as a Telegram bot with 
    - Call OpenAI API with `response_format: json_object` via Ktor HTTP client
    - Calculate response time in milliseconds
    - Extract token usage statistics from API response
-   - Parse JSON response (type, original, translation, notes fields)
-   - Format translation response with:
-     - 🌐 Translation header
-     - Original Russian text
-     - Serbian translation
-     - Optional notes
-     - Statistics (response time, token usage)
+   - Parse JSON response (type, text, summary fields)
+   - Format response with:
+     - Answer text with markdown formatting
+     - Optional summary (💡 emoji)
+     - Statistics section (📊 emoji with response time and token usage)
    - Save user message and formatted response to history
    - Return formatted markdown response
 
@@ -232,33 +229,33 @@ response content
 - Docker Compose config: `docker/docker-compose.yml`
 
 **When modifying prompts:**
-- Edit `promts/system.md` to change translation behavior and guidelines
+- Edit `promts/system.md` to change AI assistant behavior and guidelines
 - Edit `promts/assistant.md` to customize the initial greeting message shown to new users
-- System prompt instructs AI to return JSON with translation fields:
-  - `type`: Always "translation"
-  - `original`: Original Russian text (corrected if needed)
-  - `translation`: Serbian translation (Latin script)
-  - `notes`: Optional translation notes
-- **Translation Agent instructions** are included in system prompt:
-  - Translate from Russian to Serbian accurately
-  - Correct errors in the Russian text before translating
-  - Choose natural Serbian expressions, not literal translations
-  - Match the formality level of the original text
-  - Handle Serbian cases and verb aspects correctly
-- AI is instructed to use ekavian dialect for standard Serbian
+- System prompt instructs AI to return JSON with answer fields:
+  - `type`: Always "answer"
+  - `text`: Full answer text with markdown formatting
+  - `summary`: Optional one-line summary
+- **AI Assistant instructions** are included in system prompt:
+  - Answer questions accurately and clearly
+  - Provide practical value with context and examples
+  - Use clear, accessible language
+  - Break complex topics into understandable parts
+  - Be honest about limitations when uncertain
+  - Use markdown formatting (*bold*, _italic_, bullet lists)
+- AI is instructed to provide helpful, relevant, and complete responses
 - Changes take effect on next message (no restart needed in Docker due to volume mount)
 - OpenAI API is configured with `response_format: json_object` to enforce JSON responses
 
 **Markdown formatting in responses:**
 - Bot sends all messages with `ParseMode.MARKDOWN`
-- Translation responses include:
-  - 🌐 Translation header
-  - *Russian:* and *Serbian:* section headers
-  - Optional translation notes in italic
+- AI responses include:
+  - Answer text with markdown formatting (*bold* for key terms, _italic_ for emphasis)
+  - Bullet lists (•) and numbered lists
+  - Optional summary with 💡 emoji
   - 📊 Statistics section with response time and token usage
 - Assistant prompt shown at start of new conversations (from `promts/assistant.md`)
 - Commands (/start, /help, /clear) use markdown for better visual appearance
-- Supported markdown: *bold*, _italic_, `code`, bullet lists (•)
+- Supported markdown: *bold*, _italic_, `code`, bullet lists (•), numbered lists
 
 **When debugging:**
 - Check logs: `docker-compose logs -f` (Docker) or console output (local)

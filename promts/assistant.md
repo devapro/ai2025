@@ -1,12 +1,13 @@
-I'm a professional Russian-to-Serbian translator! I'm here to help you with day-to-day communication.
+I'm your AI assistant! I'm here to help answer your questions and provide useful information.
 
-I can:
-• Translate Russian text to Serbian
-• Translate Serbian text to Russian
-• Correct errors in the text
-• Choose the clearest and most natural Serbian expressions
-• Adapt the translation style for your needs (formal or informal)
+I can help you with:
+• Answering factual questions
+• Explaining complex topics in simple terms
+• Providing how-to guides and practical advice
+• Offering recommendations and suggestions
+• Solving problems and troubleshooting
+• And much more!
 
-Just send me any Russian or Serbian text, and I'll provide you with a high-quality translation!
+Just ask me anything, and I'll do my best to give you a clear, helpful answer with relevant statistics about the response.
 
-Могу да преведем текст са руског на српски! Шаљите текст на руском језику.
+How can I help you today?

@@ -1,19 +1,18 @@
-# Russian-to-Serbian Translation Bot
+# AI Assistant Telegram Bot
 
-An AI-powered Telegram bot that translates Russian text to Serbian. The bot provides professional translations with error correction, natural language adaptation, and detailed statistics for every translation.
+An AI-powered Telegram bot that provides helpful answers to user questions. The bot delivers clear, accurate responses with detailed performance statistics for every interaction.
 
 ## Features
 
-- **Professional Translation**: Russian to Serbian translation using OpenAI's GPT models
-- **Error Correction**: Automatically corrects typos and grammatical errors in Russian text before translating
-- **Natural Language**: Produces natural-sounding Serbian text, not word-for-word translations
-- **Formality Adaptation**: Matches the tone (formal/informal) of the original text
-- **Idiomatic Expressions**: Adapts Russian idioms to their Serbian equivalents
-- **Detailed Statistics**: Each response includes:
+- **General AI Assistant**: Answers questions on a wide range of topics using OpenAI's GPT models
+- **Clear Explanations**: Provides easy-to-understand answers with examples and context
+- **Practical Advice**: Offers how-to guides, recommendations, and problem-solving help
+- **Performance Statistics**: Each response includes:
   - Response time (milliseconds)
   - Token usage (prompt, completion, total)
+- **Optional Summaries**: Concise one-line summaries for quick understanding
 - **Conversation History**: Maintains conversation context for each user
-- **Markdown Formatting**: Rich formatting for clear display of translations
+- **Markdown Formatting**: Rich formatting for clear, structured responses
 - **Docker Support**: Fully containerized deployment
 
 ## Prerequisites
@@ -30,7 +29,7 @@ An AI-powered Telegram bot that translates Russian text to Serbian. The bot prov
 Ai1/
 ├── app/                          # Main application module
 │   └── src/main/kotlin/io/github/devapro/ai/
-│       ├── agent/                # Translation agent component
+│       ├── agent/                # AI agent component
 │       │   └── AiAgent.kt
 │       ├── bot/                  # Telegram bot component
 │       │   └── TelegramBot.kt
@@ -45,7 +44,7 @@ Ai1/
 │   ├── Dockerfile
 │   └── docker-compose.yml
 ├── promts/                       # Prompt templates (markdown files)
-│   ├── system.md                 # System prompt for translation agent
+│   ├── system.md                 # System prompt for AI agent
 │   └── assistant.md              # Assistant greeting
 └── history/                      # User conversation history (git-ignored)
 ```
@@ -75,7 +74,7 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 
 ### 3. Customize the prompts (optional)
 
-Edit `promts/system.md` to customize the translation behavior and guidelines.
+Edit `promts/system.md` to customize the AI assistant's behavior and response style.
 Edit `promts/assistant.md` to customize the initial greeting message.
 
 ## Running the Application
@@ -117,8 +116,8 @@ docker-compose down
 
 1. Start a conversation with your bot on Telegram
 2. Send `/start` to initialize the bot
-3. Send Russian text to translate
-4. Receive translation with Serbian text and statistics
+3. Ask any question
+4. Receive a detailed answer with statistics
 5. Use `/clear` to clear your conversation history
 6. Use `/help` to see available commands
 
@@ -128,22 +127,26 @@ docker-compose down
 - `/help` - Show help message with available commands
 - `/clear` - Clear conversation history
 
-### Translation Examples
+### Example Interaction
 
-**Input (Russian):**
+**User asks:**
 ```
-Привет! Как дела?
+What is Python?
 ```
 
-**Output:**
+**Bot responds:**
 ```
-🌐 Translation
+Python is a high-level, interpreted programming language known for its simplicity and readability. It was created by Guido van Rossum and first released in 1991.
 
-Russian:
-Привет! Как дела?
+Key features:
+• Easy to learn and read
+• Versatile - used for web development, data science, automation, etc.
+• Large standard library and ecosystem
+• Strong community support
 
-Serbian:
-Zdravo! Kako si?
+It's an excellent choice for beginners and professionals alike.
+
+💡 Python is a versatile, beginner-friendly programming language
 
 ---
 
@@ -184,7 +187,7 @@ The application follows a modular architecture with clear separation of concerns
 
 - **DI Layer** (`di/`): Koin dependency injection configuration in `AppDi.kt`
 - **Bot Component** (`bot/`): Handles Telegram API interactions and user commands
-- **Agent Component** (`agent/`): Manages AI translation using OpenAI API directly via Ktor
+- **Agent Component** (`agent/`): Manages AI conversations using OpenAI API directly via Ktor
 - **Repository Component** (`repository/`): Handles file-based storage for prompts and history
 
 All components are managed as singletons by Koin DI framework with automatic dependency resolution.
@@ -193,7 +196,7 @@ All components are managed as singletons by Koin DI framework with automatic dep
 
 - **Kotlin 2.2.0**: Primary programming language
 - **Koin 4.0.0**: Lightweight dependency injection framework
-- **OpenAI API**: Direct integration for AI-powered translation (gpt-4o-mini with JSON mode)
+- **OpenAI API**: Direct integration for AI-powered responses (gpt-4o-mini with JSON mode)
 - **kotlin-telegram-bot 6.3.0**: Telegram Bot API client
 - **Ktor 3.3.0**: HTTP client for OpenAI API communication
 - **kotlinx-coroutines**: Async/await support
@@ -201,14 +204,16 @@ All components are managed as singletons by Koin DI framework with automatic dep
 - **dotenv-kotlin**: Environment variable management
 - **Gradle**: Build system with multi-module setup
 
-### Translation Capabilities
+### AI Capabilities
 
-- **Russian to Serbian**: Professional translation from Russian to Serbian (Latin script)
-- **Error Correction**: Fixes typos and grammar issues before translating
-- **Natural Expressions**: Uses idiomatic Serbian, not literal translations
-- **Tone Matching**: Preserves formal/informal tone from original text
-- **Context Awareness**: Maintains conversation history for better translations
-- **Statistics Tracking**: Displays response time and token usage for each translation
+- **Question Answering**: Factual questions, explanations, definitions
+- **How-To Guides**: Step-by-step instructions and tutorials
+- **Problem Solving**: Troubleshooting and solutions
+- **Recommendations**: Advice and suggestions on various topics
+- **Explanations**: Breaking down complex topics into understandable parts
+- **Context Awareness**: Maintains conversation history for coherent dialogues
+- **Structured Output**: Returns responses as JSON with text and optional summary
+- **Performance Tracking**: Displays response time and token usage statistics
 
 ## Configuration
 

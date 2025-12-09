@@ -32,14 +32,20 @@ class TelegramBot(
                 bot.sendMessage(
                     chatId = chatId,
                     text = """
-                        *Welcome!* I'm a Russian-to-Serbian translator.
+                        *Welcome!* I'm your AI assistant.
 
-                        You can:
-                        • Send me Russian text and I'll translate it to Serbian
+                        I can help you with:
+                        • Answering questions
+                        • Explaining complex topics
+                        • Providing practical advice
+                        • Solving problems
+                        • And much more!
+
+                        Commands:
                         • Use /clear to clear conversation history
-                        • Use /help to see this message again
+                        • Use /help to see available commands
 
-                        Здравствуйте! Я переводчик с русского на сербский язык.
+                        Just ask me anything!
                     """.trimIndent(),
                     parseMode = ParseMode.MARKDOWN
                 )
@@ -57,9 +63,15 @@ class TelegramBot(
                         /help - Show this help message
                         /clear - Clear conversation history
 
-                        Just send me Russian text and I'll translate it to Serbian!
+                        *What I can do:*
+                        • Answer factual questions
+                        • Explain complex topics
+                        • Provide how-to guides
+                        • Offer recommendations
+                        • Help solve problems
+                        • And much more!
 
-                        Просто отправьте мне русский текст, и я переведу его на сербский!
+                        Just ask me any question!
                     """.trimIndent(),
                     parseMode = ParseMode.MARKDOWN
                 )

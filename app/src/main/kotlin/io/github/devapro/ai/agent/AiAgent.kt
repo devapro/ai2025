@@ -16,6 +16,9 @@ import org.slf4j.LoggerFactory
 /**
  * AI Agent component that handles conversations using OpenAI API
  */
+
+private const val modelName = "openai/gpt-oss-20b"
+
 class AiAgent(
     private val apiKey: String,
     private val fileRepository: FileRepository
@@ -28,6 +31,9 @@ class AiAgent(
                 ignoreUnknownKeys = true
                 prettyPrint = true
             })
+        }
+        install(io.ktor.client.plugins.HttpTimeout) {
+            requestTimeoutMillis = 520_000 // 60 seconds
         }
     }
 
@@ -55,12 +61,12 @@ class AiAgent(
             add(OpenAIMessage(role = "system", content = systemPrompt))
 
             // Add assistant prompt to guide behavior
-            if (history.isEmpty()) {
-                add(OpenAIMessage(
-                    role = "assistant",
-                    content = fileRepository.getAssistantPrompt()
-                ))
-            }
+//            if (history.isEmpty()) {
+//                add(OpenAIMessage(
+//                    role = "assistant",
+//                    content = fileRepository.getAssistantPrompt()
+//                ))
+//            }
 
             // Add conversation history
             history.forEach { msg ->
@@ -73,18 +79,19 @@ class AiAgent(
 
         // Create request with JSON mode enabled
         val request = OpenAIRequest(
-            model = "gpt-4o-mini",
+            model = modelName,
             messages = messages,
-            temperature = 1.2,
-            responseFormat = ResponseFormat(type = "json_object")
+            temperature = 0.9,
+           // responseFormat = ResponseFormat(type = "json_object"),
+            stream = false
         )
 
         // Measure API response time
         val startTime = System.currentTimeMillis()
 
         // Call OpenAI API
-        val response = client.post("https://api.openai.com/v1/chat/completions") {
-            header("Authorization", "Bearer $apiKey")
+        val response = client.post("http://127.0.0.1:1234/v1/chat/completions") {
+         //   header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body<OpenAIResponse>()
@@ -147,46 +154,33 @@ class AiAgent(
         val aiResponse = jsonParser.decodeFromString<AiResponse>(jsonContent)
 
         // Handle empty response
-        if (aiResponse.translation.isNullOrBlank() && aiResponse.original.isNullOrBlank()) {
-            return "No translation available."
+        if (aiResponse.text.isNullOrBlank()) {
+            return "I'm here to help! Please ask me a question and I'll do my best to provide a helpful answer."
         }
 
-        // Format the translation response
-        return formatTranslationResponse(aiResponse, usage, responseTime)
+        // Format the response
+        return formatResponse(aiResponse, usage, responseTime)
     }
 
     /**
-     * Format translation response with statistics
+     * Format AI response with statistics
      */
-    private fun formatTranslationResponse(aiResponse: AiResponse, usage: TokenUsage?, responseTime: Long): String {
+    private fun formatResponse(aiResponse: AiResponse, usage: TokenUsage?, responseTime: Long): String {
         return buildString {
-            // Translation header
-            append("🌐 *Translation*\n\n")
+            // Main answer text
+            append(aiResponse.text ?: "")
+            append("\n\n")
 
-            // Original text (Russian)
-            if (!aiResponse.original.isNullOrBlank()) {
-                append("*Russian:*\n")
-                append(aiResponse.original)
-                append("\n\n")
-            }
-
-            // Translated text (Serbian)
-            if (!aiResponse.translation.isNullOrBlank()) {
-                append("*Serbian:*\n")
-                append(aiResponse.translation)
-                append("\n\n")
-            }
-
-            // Notes if present
-            if (!aiResponse.notes.isNullOrBlank()) {
-                append("_Note: ${aiResponse.notes}_\n\n")
+            // Summary if present
+            if (!aiResponse.summary.isNullOrBlank()) {
+                append("💡 _${aiResponse.summary}_\n\n")
             }
 
             // Statistics separator
             append("---\n\n")
 
             // Statistics
-            append("📊 *Statistics:*\n")
+            append("📊 *${modelName}:*\n")
             append("• Response time: ${responseTime}ms\n")
             if (usage != null) {
                 append("• Tokens used: ${usage.totalTokens} (prompt: ${usage.promptTokens}, completion: ${usage.completionTokens})")
@@ -200,18 +194,16 @@ class AiAgent(
 }
 
 /**
- * AI response structure from JSON for translation
+ * AI response structure from JSON
  */
 @Serializable
 data class AiResponse(
     @SerialName("type")
-    val type: String? = "translation",
-    @SerialName("original")
-    val original: String? = null,
-    @SerialName("translation")
-    val translation: String? = null,
-    @SerialName("notes")
-    val notes: String? = null
+    val type: String? = "answer",
+    @SerialName("text")
+    val text: String? = null,
+    @SerialName("summary")
+    val summary: String? = null
 )
 
 @Serializable
@@ -233,7 +225,9 @@ data class OpenAIRequest(
     @SerialName("top_p")
     val topP: Double? = null,
     @SerialName("response_format")
-    val responseFormat: ResponseFormat? = null
+    val responseFormat: ResponseFormat? = null,
+    @SerialName("stream")
+    val stream: Boolean = false
 )
 
 @Serializable
