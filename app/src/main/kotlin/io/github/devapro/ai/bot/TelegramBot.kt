@@ -32,13 +32,14 @@ class TelegramBot(
                 bot.sendMessage(
                     chatId = chatId,
                     text = """
-                        *Welcome!* I'm a Bash Script Creation Assistant.
+                        *Welcome!* I'm a Russian-to-Serbian translator.
 
                         You can:
-                        • Send me any message and I'll respond
-                        • Use /script to create bash scripts
+                        • Send me Russian text and I'll translate it to Serbian
                         • Use /clear to clear conversation history
                         • Use /help to see this message again
+
+                        Здравствуйте! Я переводчик с русского на сербский язык.
                     """.trimIndent(),
                     parseMode = ParseMode.MARKDOWN
                 )
@@ -54,28 +55,11 @@ class TelegramBot(
 
                         /start - Start conversation
                         /help - Show this help message
-                        /script - Create bash script (interactive)
                         /clear - Clear conversation history
 
-                        Just send me any message and I'll respond!
-                    """.trimIndent(),
-                    parseMode = ParseMode.MARKDOWN
-                )
-            }
+                        Just send me Russian text and I'll translate it to Serbian!
 
-            // Handle /script command
-            command("script") {
-                val chatId = message.chat.id
-                bot.sendMessage(
-                    chatId = ChatId.fromId(chatId),
-                    text = """
-                        📝 *Script Creation Mode Activated*
-
-                        I'll help you create a production-ready bash script!
-
-                        To get started, please describe what task you want to automate or what the script should do.
-
-                        I'll ask you clarifying questions to gather all necessary information about inputs, outputs, error handling, and more. Then I'll provide you with a complete bash script.
+                        Просто отправьте мне русский текст, и я переведу его на сербский!
                     """.trimIndent(),
                     parseMode = ParseMode.MARKDOWN
                 )

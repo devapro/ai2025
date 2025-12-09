@@ -1,18 +1,20 @@
-# Bash Script Creation Assistant - Telegram Bot
+# Russian-to-Serbian Translation Bot
 
-An AI-powered Telegram bot that helps you create production-ready bash scripts. The bot collects requirements through interactive questioning and generates complete, well-documented bash scripts with proper error handling and best practices.
+An AI-powered Telegram bot that translates Russian text to Serbian. The bot provides professional translations with error correction, natural language adaptation, and detailed statistics for every translation.
 
 ## Features
 
-- **AI-Powered Script Generation**: Uses OpenAI's GPT models via direct API integration with JSON mode
-- **Interactive Requirements Gathering**: Asks targeted questions to understand your automation needs
-- **Production-Ready Scripts**: Generates bash scripts with proper error handling, input validation, and security best practices
-- **Markdown Formatting**: All responses support rich markdown formatting (bold, italic, code blocks, lists, links)
-- **Structured Responses**: AI returns structured JSON with response type and content
-- **Conversation History**: Maintains separate conversation history for each user
-- **Persistent Storage**: Stores conversation history and prompts in markdown files
-- **Docker Support**: Fully containerized with Docker and Docker Compose
-- **Modular Architecture**: Clean separation of concerns with dedicated packages for each component
+- **Professional Translation**: Russian to Serbian translation using OpenAI's GPT models
+- **Error Correction**: Automatically corrects typos and grammatical errors in Russian text before translating
+- **Natural Language**: Produces natural-sounding Serbian text, not word-for-word translations
+- **Formality Adaptation**: Matches the tone (formal/informal) of the original text
+- **Idiomatic Expressions**: Adapts Russian idioms to their Serbian equivalents
+- **Detailed Statistics**: Each response includes:
+  - Response time (milliseconds)
+  - Token usage (prompt, completion, total)
+- **Conversation History**: Maintains conversation context for each user
+- **Markdown Formatting**: Rich formatting for clear display of translations
+- **Docker Support**: Fully containerized deployment
 
 ## Prerequisites
 
@@ -28,7 +30,7 @@ An AI-powered Telegram bot that helps you create production-ready bash scripts. 
 Ai1/
 ├── app/                          # Main application module
 │   └── src/main/kotlin/io/github/devapro/ai/
-│       ├── agent/                # AI agent component
+│       ├── agent/                # Translation agent component
 │       │   └── AiAgent.kt
 │       ├── bot/                  # Telegram bot component
 │       │   └── TelegramBot.kt
@@ -43,8 +45,8 @@ Ai1/
 │   ├── Dockerfile
 │   └── docker-compose.yml
 ├── promts/                       # Prompt templates (markdown files)
-│   ├── system.md                 # System prompt for AI behavior
-│   └── assistant.md              # Assistant greeting for new conversations
+│   ├── system.md                 # System prompt for translation agent
+│   └── assistant.md              # Assistant greeting
 └── history/                      # User conversation history (git-ignored)
 ```
 
@@ -73,8 +75,8 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 
 ### 3. Customize the prompts (optional)
 
-Edit `promts/system.md` to customize the AI assistant's behavior and personality.
-Edit `promts/assistant.md` to customize the initial greeting message shown to new users.
+Edit `promts/system.md` to customize the translation behavior and guidelines.
+Edit `promts/assistant.md` to customize the initial greeting message.
 
 ## Running the Application
 
@@ -115,41 +117,40 @@ docker-compose down
 
 1. Start a conversation with your bot on Telegram
 2. Send `/start` to initialize the bot
-3. Describe what task you want to automate or send any message
-4. The bot will ask questions to understand your requirements
-5. Answer the questions to provide necessary details
-6. Receive a complete bash script with documentation
-7. Use `/clear` to clear your conversation history
-8. Use `/help` to see available commands
+3. Send Russian text to translate
+4. Receive translation with Serbian text and statistics
+5. Use `/clear` to clear your conversation history
+6. Use `/help` to see available commands
 
 ### Available Commands
 
 - `/start` - Start conversation with the bot
 - `/help` - Show help message with available commands
-- `/script` - Activate script creation mode to create bash scripts
 - `/clear` - Clear conversation history
 
-### Script Creation Mode
+### Translation Examples
 
-The bot includes a specialized **Script Creation Agent** that helps you create production-ready bash scripts:
+**Input (Russian):**
+```
+Привет! Как дела?
+```
 
-1. **Activate Script Mode**: Send `/script` or ask "create a bash script that..."
-2. **Describe Your Task**: Tell the bot what you want to automate
-3. **Answer Questions**: The agent will ask clarifying questions about:
-   - Task purpose and requirements
-   - Inputs and outputs
-   - Environment (OS, available tools)
-   - Error handling preferences
-   - Security considerations
-   - Edge cases to handle
-4. **Receive Your Script**: Once enough information is gathered, receive a complete bash script including:
-   - Proper shebang and error handling (set -euo pipefail)
-   - Input validation and argument parsing
-   - Usage documentation and help function
-   - Color-coded logging functions
-   - Inline comments for complex logic
-   - Security best practices (proper quoting, validation)
-   - Testing examples
+**Output:**
+```
+🌐 Translation
+
+Russian:
+Привет! Как дела?
+
+Serbian:
+Zdravo! Kako si?
+
+---
+
+📊 Statistics:
+• Response time: 1234ms
+• Tokens used: 156 (prompt: 89, completion: 67)
+```
 
 ## Development
 
@@ -183,7 +184,7 @@ The application follows a modular architecture with clear separation of concerns
 
 - **DI Layer** (`di/`): Koin dependency injection configuration in `AppDi.kt`
 - **Bot Component** (`bot/`): Handles Telegram API interactions and user commands
-- **Agent Component** (`agent/`): Manages AI conversations using OpenAI API directly via Ktor
+- **Agent Component** (`agent/`): Manages AI translation using OpenAI API directly via Ktor
 - **Repository Component** (`repository/`): Handles file-based storage for prompts and history
 
 All components are managed as singletons by Koin DI framework with automatic dependency resolution.
@@ -192,7 +193,7 @@ All components are managed as singletons by Koin DI framework with automatic dep
 
 - **Kotlin 2.2.0**: Primary programming language
 - **Koin 4.0.0**: Lightweight dependency injection framework
-- **OpenAI API**: Direct integration for AI-powered conversations (gpt-4o-mini with JSON mode)
+- **OpenAI API**: Direct integration for AI-powered translation (gpt-4o-mini with JSON mode)
 - **kotlin-telegram-bot 6.3.0**: Telegram Bot API client
 - **Ktor 3.3.0**: HTTP client for OpenAI API communication
 - **kotlinx-coroutines**: Async/await support
@@ -200,14 +201,14 @@ All components are managed as singletons by Koin DI framework with automatic dep
 - **dotenv-kotlin**: Environment variable management
 - **Gradle**: Build system with multi-module setup
 
-### AI Capabilities
+### Translation Capabilities
 
-- **General Assistant**: Answers questions, provides information, engages in conversation
-- **Script Creation Agent**: Creates production-ready bash scripts through interactive questioning
-- **Context Awareness**: Maintains conversation history for coherent multi-turn dialogues
-- **Structured Output**: Returns responses as JSON with type classification (answer/question/script)
-- **Best Practices**: Generates scripts following bash best practices (shellcheck compatible)
-- **Security Focus**: Includes input validation, proper quoting, and error handling
+- **Russian to Serbian**: Professional translation from Russian to Serbian (Latin script)
+- **Error Correction**: Fixes typos and grammar issues before translating
+- **Natural Expressions**: Uses idiomatic Serbian, not literal translations
+- **Tone Matching**: Preserves formal/informal tone from original text
+- **Context Awareness**: Maintains conversation history for better translations
+- **Statistics Tracking**: Displays response time and token usage for each translation
 
 ## Configuration
 

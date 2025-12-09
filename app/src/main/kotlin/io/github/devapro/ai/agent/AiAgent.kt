@@ -79,12 +79,17 @@ class AiAgent(
             responseFormat = ResponseFormat(type = "json_object")
         )
 
+        // Measure API response time
+        val startTime = System.currentTimeMillis()
+
         // Call OpenAI API
         val response = client.post("https://api.openai.com/v1/chat/completions") {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body<OpenAIResponse>()
+
+        val responseTime = System.currentTimeMillis() - startTime
 
         val rawResponse = response.choices.firstOrNull()?.message?.content
             ?: "Sorry, I couldn't generate a response."
@@ -95,10 +100,11 @@ class AiAgent(
         if (usage != null) {
             logger.info("Token usage - Prompt: ${usage.promptTokens}, Completion: ${usage.completionTokens}, Total: ${usage.totalTokens}")
         }
+        logger.info("Response time: ${responseTime}ms")
 
         // Parse JSON response and format it
         val formattedResponse = try {
-            parseAndFormatResponse(rawResponse, usage)
+            parseAndFormatResponse(rawResponse, usage, responseTime)
         } catch (e: Exception) {
             logger.warn("Failed to parse AI response as JSON, using raw response: ${e.message}")
             rawResponse
@@ -121,7 +127,7 @@ class AiAgent(
     /**
      * Parse JSON response from AI and format it for display
      */
-    private fun parseAndFormatResponse(rawResponse: String, usage: TokenUsage?): String {
+    private fun parseAndFormatResponse(rawResponse: String, usage: TokenUsage?, responseTime: Long): String {
         // Try to extract JSON from potential markdown code block
         val jsonContent = if (rawResponse.contains("```json")) {
             rawResponse
@@ -141,63 +147,51 @@ class AiAgent(
         val aiResponse = jsonParser.decodeFromString<AiResponse>(jsonContent)
 
         // Handle empty response
-        if (aiResponse.text.isNullOrBlank()) {
-            return "I don't have enough information to answer that question properly."
+        if (aiResponse.translation.isNullOrBlank() && aiResponse.original.isNullOrBlank()) {
+            return "No translation available."
         }
 
-        // Format the response based on type
-        return when (aiResponse.type) {
-            "question" -> formatQuestionResponse(aiResponse, usage)
-            "script" -> formatScriptResponse(aiResponse, usage)
-            else -> formatStandardResponse(aiResponse, usage)
-        }
+        // Format the translation response
+        return formatTranslationResponse(aiResponse, usage, responseTime)
     }
 
     /**
-     * Format standard answer response
+     * Format translation response with statistics
      */
-    private fun formatStandardResponse(aiResponse: AiResponse, usage: TokenUsage?): String {
+    private fun formatTranslationResponse(aiResponse: AiResponse, usage: TokenUsage?, responseTime: Long): String {
         return buildString {
-            append(aiResponse.text ?: "")
-            append(formatTokenUsage(usage))
-        }
-    }
+            // Translation header
+            append("🌐 *Translation*\n\n")
 
-    /**
-     * Format question response (gathering requirements)
-     */
-    private fun formatQuestionResponse(aiResponse: AiResponse, usage: TokenUsage?): String {
-        return buildString {
-            append("❓ *Gathering Information*\n\n")
-            append(aiResponse.text ?: "")
-            if (aiResponse.questionsAsked != null && aiResponse.questionsAsked > 0) {
-                append("\n\n_Please answer the question above so I can create the bash script for you._")
+            // Original text (Russian)
+            if (!aiResponse.original.isNullOrBlank()) {
+                append("*Russian:*\n")
+                append(aiResponse.original)
+                append("\n\n")
             }
-            append(formatTokenUsage(usage))
-        }.trim()
-    }
 
-    /**
-     * Format bash script response
-     */
-    private fun formatScriptResponse(aiResponse: AiResponse, usage: TokenUsage?): String {
-        return buildString {
-            append("📝 *Bash Script*\n\n")
+            // Translated text (Serbian)
+            if (!aiResponse.translation.isNullOrBlank()) {
+                append("*Serbian:*\n")
+                append(aiResponse.translation)
+                append("\n\n")
+            }
+
+            // Notes if present
+            if (!aiResponse.notes.isNullOrBlank()) {
+                append("_Note: ${aiResponse.notes}_\n\n")
+            }
+
+            // Statistics separator
             append("---\n\n")
-            append(aiResponse.text ?: "")
-            append(formatTokenUsage(usage))
-        }.trim()
-    }
 
-    /**
-     * Format token usage information
-     */
-    private fun formatTokenUsage(usage: TokenUsage?): String {
-        return if (usage != null) {
-            "\n\n---\n\n_Tokens used: ${usage.totalTokens} (prompt: ${usage.promptTokens}, completion: ${usage.completionTokens})_"
-        } else {
-            ""
-        }
+            // Statistics
+            append("📊 *Statistics:*\n")
+            append("• Response time: ${responseTime}ms\n")
+            if (usage != null) {
+                append("• Tokens used: ${usage.totalTokens} (prompt: ${usage.promptTokens}, completion: ${usage.completionTokens})")
+            }
+        }.trim()
     }
 
     fun close() {
@@ -206,16 +200,18 @@ class AiAgent(
 }
 
 /**
- * AI response structure from JSON
+ * AI response structure from JSON for translation
  */
 @Serializable
 data class AiResponse(
     @SerialName("type")
-    val type: String? = "answer",  // "answer", "question", or "script"
-    @SerialName("text")
-    val text: String? = null,
-    @SerialName("questionsAsked")
-    val questionsAsked: Int? = null
+    val type: String? = "translation",
+    @SerialName("original")
+    val original: String? = null,
+    @SerialName("translation")
+    val translation: String? = null,
+    @SerialName("notes")
+    val notes: String? = null
 )
 
 @Serializable

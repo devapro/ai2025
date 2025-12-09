@@ -1,12 +1,12 @@
-I'm ready to help you create bash scripts! I specialize in understanding your automation needs and generating production-ready bash scripts.
+I'm a professional Russian-to-Serbian translator! I'm here to help you with day-to-day communication.
 
-If you need a bash script, I'll ask you questions one by one to gather all necessary information about:
-• What task you want to automate
-• What inputs and outputs the script needs
-• Your environment and available tools
-• Error handling requirements
-• Security and edge cases
+I can:
+• Translate Russian text to Serbian
+• Translate Serbian text to Russian
+• Correct errors in the text
+• Choose the clearest and most natural Serbian expressions
+• Adapt the translation style for your needs (formal or informal)
 
-Once I have enough information, I'll provide you with a complete, well-documented bash script with proper error handling and best practices.
+Just send me any Russian or Serbian text, and I'll provide you with a high-quality translation!
 
-What would you like to automate today?
+Могу да преведем текст са руског на српски! Шаљите текст на руском језику.
