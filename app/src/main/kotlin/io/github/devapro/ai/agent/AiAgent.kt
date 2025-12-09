@@ -89,11 +89,16 @@ class AiAgent(
         val rawResponse = response.choices.firstOrNull()?.message?.content
             ?: "Sorry, I couldn't generate a response."
 
+        val usage = response.usage
+
         logger.info(rawResponse)
+        if (usage != null) {
+            logger.info("Token usage - Prompt: ${usage.promptTokens}, Completion: ${usage.completionTokens}, Total: ${usage.totalTokens}")
+        }
 
         // Parse JSON response and format it
         val formattedResponse = try {
-            parseAndFormatResponse(rawResponse)
+            parseAndFormatResponse(rawResponse, usage)
         } catch (e: Exception) {
             logger.warn("Failed to parse AI response as JSON, using raw response: ${e.message}")
             rawResponse
@@ -116,7 +121,7 @@ class AiAgent(
     /**
      * Parse JSON response from AI and format it for display
      */
-    private fun parseAndFormatResponse(rawResponse: String): String {
+    private fun parseAndFormatResponse(rawResponse: String, usage: TokenUsage?): String {
         // Try to extract JSON from potential markdown code block
         val jsonContent = if (rawResponse.contains("```json")) {
             rawResponse
@@ -142,41 +147,57 @@ class AiAgent(
 
         // Format the response based on type
         return when (aiResponse.type) {
-            "question" -> formatQuestionResponse(aiResponse)
-            "script" -> formatScriptResponse(aiResponse)
-            else -> formatStandardResponse(aiResponse)
+            "question" -> formatQuestionResponse(aiResponse, usage)
+            "script" -> formatScriptResponse(aiResponse, usage)
+            else -> formatStandardResponse(aiResponse, usage)
         }
     }
 
     /**
      * Format standard answer response
      */
-    private fun formatStandardResponse(aiResponse: AiResponse): String {
-        return aiResponse.text ?: ""
+    private fun formatStandardResponse(aiResponse: AiResponse, usage: TokenUsage?): String {
+        return buildString {
+            append(aiResponse.text ?: "")
+            append(formatTokenUsage(usage))
+        }
     }
 
     /**
      * Format question response (gathering requirements)
      */
-    private fun formatQuestionResponse(aiResponse: AiResponse): String {
+    private fun formatQuestionResponse(aiResponse: AiResponse, usage: TokenUsage?): String {
         return buildString {
             append("❓ *Gathering Information*\n\n")
             append(aiResponse.text ?: "")
             if (aiResponse.questionsAsked != null && aiResponse.questionsAsked > 0) {
                 append("\n\n_Please answer the question above so I can create the bash script for you._")
             }
+            append(formatTokenUsage(usage))
         }.trim()
     }
 
     /**
      * Format bash script response
      */
-    private fun formatScriptResponse(aiResponse: AiResponse): String {
+    private fun formatScriptResponse(aiResponse: AiResponse, usage: TokenUsage?): String {
         return buildString {
             append("📝 *Bash Script*\n\n")
             append("---\n\n")
             append(aiResponse.text ?: "")
+            append(formatTokenUsage(usage))
         }.trim()
+    }
+
+    /**
+     * Format token usage information
+     */
+    private fun formatTokenUsage(usage: TokenUsage?): String {
+        return if (usage != null) {
+            "\n\n---\n\n_Tokens used: ${usage.totalTokens} (prompt: ${usage.promptTokens}, completion: ${usage.completionTokens})_"
+        } else {
+            ""
+        }
     }
 
     fun close() {
@@ -228,11 +249,23 @@ data class ResponseFormat(
 @Serializable
 data class OpenAIResponse(
     @SerialName("choices")
-    val choices: List<OpenAIChoice>
+    val choices: List<OpenAIChoice>,
+    @SerialName("usage")
+    val usage: TokenUsage? = null
 )
 
 @Serializable
 data class OpenAIChoice(
     @SerialName("message")
     val message: OpenAIMessage
+)
+
+@Serializable
+data class TokenUsage(
+    @SerialName("prompt_tokens")
+    val promptTokens: Int,
+    @SerialName("completion_tokens")
+    val completionTokens: Int,
+    @SerialName("total_tokens")
+    val totalTokens: Int
 )
