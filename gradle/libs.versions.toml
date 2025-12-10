@@ -16,6 +16,7 @@ exposed = "0.57.0"
 sqliteJdbc = "3.47.1.0"
 socketio = "2.1.0"
 koin = "4.0.0"
+jtokkit = "1.1.0"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -37,6 +38,7 @@ sqliteJdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqliteJdbc" }
 socketioClient = { module = "io.socket:socket.io-client", version.ref = "socketio" }
 koinCore = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koinLogger = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" }
+jtokkit = { module = "com.knuddels:jtokkit", version.ref = "jtokkit" }
 
 # Libraries can be bundled together for easier import
 [bundles]

@@ -1,5 +1,9 @@
 package io.github.devapro.ai.agent
 
+import com.knuddels.jtokkit.Encodings
+import com.knuddels.jtokkit.api.Encoding
+import com.knuddels.jtokkit.api.EncodingRegistry
+import com.knuddels.jtokkit.api.EncodingType
 import io.github.devapro.ai.repository.FileRepository
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -17,13 +21,17 @@ import org.slf4j.LoggerFactory
  * AI Agent component that handles conversations using OpenAI API
  */
 
-private const val modelName = "openai/gpt-oss-20b"
+private const val modelName = "gpt-4o-mini"
 
 class AiAgent(
     private val apiKey: String,
     private val fileRepository: FileRepository
 ) {
     private val logger = LoggerFactory.getLogger(AiAgent::class.java)
+
+    // Token counting with jtokkit
+    private val encodingRegistry: EncodingRegistry = Encodings.newDefaultEncodingRegistry()
+    private val encoding: Encoding = encodingRegistry.getEncoding(EncodingType.O200K_BASE)
 
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -86,12 +94,16 @@ class AiAgent(
             stream = false
         )
 
+        // Count estimated tokens before sending request
+        val estimatedTokens = countTokens(messages)
+        logger.info("Estimated prompt tokens: $estimatedTokens")
+
         // Measure API response time
         val startTime = System.currentTimeMillis()
 
         // Call OpenAI API
-        val response = client.post("http://127.0.0.1:1234/v1/chat/completions") {
-         //   header("Authorization", "Bearer $apiKey")
+        val response = client.post("https://api.openai.com/v1/chat/completions") {
+            header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body<OpenAIResponse>()
@@ -111,7 +123,7 @@ class AiAgent(
 
         // Parse JSON response and format it
         val formattedResponse = try {
-            parseAndFormatResponse(rawResponse, usage, responseTime)
+            parseAndFormatResponse(rawResponse, usage, responseTime, estimatedTokens)
         } catch (e: Exception) {
             logger.warn("Failed to parse AI response as JSON, using raw response: ${e.message}")
             rawResponse
@@ -132,9 +144,37 @@ class AiAgent(
     }
 
     /**
+     * Count tokens in messages before sending request
+     * Uses jtokkit to estimate token count
+     */
+    private fun countTokens(messages: List<OpenAIMessage>): Int {
+        var totalTokens = 0
+
+        // Count tokens for each message
+        messages.forEach { message ->
+            // Count tokens for role
+            totalTokens += encoding.countTokens(message.role)
+            // Count tokens for content
+            totalTokens += encoding.countTokens(message.content)
+            // Add overhead per message (typically 3-4 tokens per message for formatting)
+            totalTokens += 4
+        }
+
+        // Add overhead for reply priming (typically 3 tokens)
+        totalTokens += 3
+
+        return totalTokens
+    }
+
+    /**
      * Parse JSON response from AI and format it for display
      */
-    private fun parseAndFormatResponse(rawResponse: String, usage: TokenUsage?, responseTime: Long): String {
+    private fun parseAndFormatResponse(
+        rawResponse: String,
+        usage: TokenUsage?,
+        responseTime: Long,
+        estimatedTokes: Int
+    ): String {
         // Try to extract JSON from potential markdown code block
         val jsonContent = if (rawResponse.contains("```json")) {
             rawResponse
@@ -159,13 +199,18 @@ class AiAgent(
         }
 
         // Format the response
-        return formatResponse(aiResponse, usage, responseTime)
+        return formatResponse(aiResponse, usage, responseTime, estimatedTokes)
     }
 
     /**
      * Format AI response with statistics
      */
-    private fun formatResponse(aiResponse: AiResponse, usage: TokenUsage?, responseTime: Long): String {
+    private fun formatResponse(
+        aiResponse: AiResponse,
+        usage: TokenUsage?,
+        responseTime: Long,
+        estimatedTokes: Int
+    ): String {
         return buildString {
             // Main answer text
             append(aiResponse.text ?: "")
@@ -183,6 +228,7 @@ class AiAgent(
             append("📊 *${modelName}:*\n")
             append("• Response time: ${responseTime}ms\n")
             if (usage != null) {
+                append("• Estimated incoming tokes: ${estimatedTokes}\n")
                 append("• Tokens used: ${usage.totalTokens} (prompt: ${usage.promptTokens}, completion: ${usage.completionTokens})")
             }
         }.trim()

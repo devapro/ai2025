@@ -32,6 +32,9 @@ dependencies {
 
     // Logging
     implementation(libs.slf4jSimple)
+
+    // Token counting
+    implementation(libs.jtokkit)
 }
 
 application {
