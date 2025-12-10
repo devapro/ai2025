@@ -41,7 +41,7 @@ class AiAgent(
             })
         }
         install(io.ktor.client.plugins.HttpTimeout) {
-            requestTimeoutMillis = 520_000 // 60 seconds
+            requestTimeoutMillis = 520_000
         }
     }
 
@@ -90,6 +90,7 @@ class AiAgent(
             model = modelName,
             messages = messages,
             temperature = 0.9,
+            maxTokens = 100,
            // responseFormat = ResponseFormat(type = "json_object"),
             stream = false
         )
@@ -268,6 +269,8 @@ data class OpenAIRequest(
     val messages: List<OpenAIMessage>,
     @SerialName("temperature")
     val temperature: Double,
+    @SerialName("max_tokens")
+    val maxTokens: Int? = null,
     @SerialName("top_p")
     val topP: Double? = null,
     @SerialName("response_format")
