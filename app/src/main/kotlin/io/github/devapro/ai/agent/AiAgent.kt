@@ -135,6 +135,13 @@ class AiAgent(
         fileRepository.saveUserMessage(userId, userMessage)
         fileRepository.saveAssistantMessage(userId, formattedResponse)
 
+        // Check if we need to summarize history (every 5 messages)
+        val newHistoryLength = historyLength + 2 // Added user message + assistant message
+        if (newHistoryLength >= 5 && newHistoryLength % 5 == 0) {
+            logger.info("History length reached $newHistoryLength, creating summary...")
+            summarizeAndReplaceHistory(userId)
+        }
+
         return formattedResponse
     }
 
@@ -143,6 +150,71 @@ class AiAgent(
      */
     fun clearHistory(userId: Long) {
         fileRepository.clearUserHistory(userId)
+    }
+
+    /**
+     * Summarize conversation history and replace it with the summary
+     */
+    private suspend fun summarizeAndReplaceHistory(userId: Long) {
+        try {
+            // Get current history
+            val history = fileRepository.getUserHistory(userId)
+            if (history.isEmpty()) return
+
+            // Build conversation text for summarization
+            val conversationText = buildString {
+                history.forEach { msg ->
+                    append("${msg.role.uppercase()}: ${msg.content}\n\n")
+                }
+            }
+
+            // Create summarization request
+            val summaryPrompt = """
+                Please create a concise summary of the following conversation.
+                Focus on key topics discussed, important information exchanged, and any decisions or conclusions reached.
+                Keep the summary brief but informative.
+
+                Conversation:
+                $conversationText
+
+                Provide the summary in plain text format (not JSON).
+            """.trimIndent()
+
+            val summaryMessages = listOf(
+                OpenAIMessage(role = "user", content = summaryPrompt)
+            )
+
+            val summaryRequest = OpenAIRequest(
+                model = modelName,
+                messages = summaryMessages,
+                temperature = 0.7,
+                stream = false
+            )
+
+            // Call API to get summary
+            val response = client.post("https://api.openai.com/v1/chat/completions") {
+                header("Authorization", "Bearer $apiKey")
+                contentType(ContentType.Application.Json)
+                setBody(summaryRequest)
+            }.body<OpenAIResponse>()
+
+            val summary = response.choices.firstOrNull()?.message?.content?.trim()
+
+            if (!summary.isNullOrBlank()) {
+                logger.info("Summary created successfully, replacing history")
+
+                // Clear current history
+                fileRepository.clearUserHistory(userId)
+
+                // Save summary as a system message
+                fileRepository.saveSystemMessage(userId, "Conversation summary: $summary")
+
+                logger.info("History replaced with summary")
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to summarize history: ${e.message}", e)
+            // Continue without summarization on error
+        }
     }
 
     /**

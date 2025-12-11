@@ -75,6 +75,13 @@ class FileRepository(
                     }
                     currentRole = "assistant"
                 }
+                line.startsWith("## System:") -> {
+                    if (currentRole != null) {
+                        messages.add(ConversationMessage(currentRole, currentContent.toString().trim()))
+                        currentContent.clear()
+                    }
+                    currentRole = "system"
+                }
                 line.startsWith("---") -> {
                     // Separator, continue
                 }
@@ -139,6 +146,28 @@ class FileRepository(
     }
 
     /**
+     * Save system message to history (e.g., conversation summary)
+     */
+    fun saveSystemMessage(userId: Long, message: String) {
+        val historyFile = File(historyDir, "user_${userId}.md")
+        val timestamp = java.time.LocalDateTime.now().toString()
+
+        val content = buildString {
+            append("\n## System:\n")
+            append("*${timestamp}*\n\n")
+            append(message)
+            append("\n\n---\n")
+        }
+
+        Files.write(
+            Paths.get(historyFile.absolutePath),
+            content.toByteArray(),
+            StandardOpenOption.CREATE,
+            StandardOpenOption.APPEND
+        )
+    }
+
+    /**
      * Clear history for a specific user
      */
     fun clearUserHistory(userId: Long) {
@@ -153,6 +182,6 @@ class FileRepository(
  * Represents a single message in a conversation
  */
 data class ConversationMessage(
-    val role: String,  // "user" or "assistant"
+    val role: String,  // "user", "assistant", or "system"
     val content: String
 )
