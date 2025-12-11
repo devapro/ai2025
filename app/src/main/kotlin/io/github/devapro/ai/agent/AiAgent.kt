@@ -62,6 +62,7 @@ class AiAgent(
 
         // Get conversation history
         val history = fileRepository.getUserHistory(userId)
+        val historyLength = history.size
 
         // Build messages list for the API
         val messages = buildList {
@@ -90,7 +91,7 @@ class AiAgent(
             model = modelName,
             messages = messages,
             temperature = 0.9,
-            maxTokens = 100,
+            // maxTokens = 100,
            // responseFormat = ResponseFormat(type = "json_object"),
             stream = false
         )
@@ -124,7 +125,7 @@ class AiAgent(
 
         // Parse JSON response and format it
         val formattedResponse = try {
-            parseAndFormatResponse(rawResponse, usage, responseTime, estimatedTokens)
+            parseAndFormatResponse(rawResponse, usage, responseTime, estimatedTokens, historyLength)
         } catch (e: Exception) {
             logger.warn("Failed to parse AI response as JSON, using raw response: ${e.message}")
             rawResponse
@@ -174,7 +175,8 @@ class AiAgent(
         rawResponse: String,
         usage: TokenUsage?,
         responseTime: Long,
-        estimatedTokes: Int
+        estimatedTokes: Int,
+        historyLength: Int
     ): String {
         // Try to extract JSON from potential markdown code block
         val jsonContent = if (rawResponse.contains("```json")) {
@@ -200,7 +202,7 @@ class AiAgent(
         }
 
         // Format the response
-        return formatResponse(aiResponse, usage, responseTime, estimatedTokes)
+        return formatResponse(aiResponse, usage, responseTime, estimatedTokes, historyLength)
     }
 
     /**
@@ -210,7 +212,8 @@ class AiAgent(
         aiResponse: AiResponse,
         usage: TokenUsage?,
         responseTime: Long,
-        estimatedTokes: Int
+        estimatedTokes: Int,
+        historyLength: Int
     ): String {
         return buildString {
             // Main answer text
@@ -228,6 +231,7 @@ class AiAgent(
             // Statistics
             append("📊 *${modelName}:*\n")
             append("• Response time: ${responseTime}ms\n")
+            append("• History messages: ${historyLength}\n")
             if (usage != null) {
                 append("• Estimated incoming tokes: ${estimatedTokes}\n")
                 append("• Tokens used: ${usage.totalTokens} (prompt: ${usage.promptTokens}, completion: ${usage.completionTokens})")
