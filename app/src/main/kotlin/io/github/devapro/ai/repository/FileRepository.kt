@@ -1,9 +1,12 @@
 package io.github.devapro.ai.repository
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.nio.file.StandardOpenOption
+import java.time.LocalDateTime
 
 /**
  * Repository for managing prompts and conversation history stored in files
@@ -12,6 +15,11 @@ class FileRepository(
     private val promptsDir: String = "promts",
     private val historyDir: String = "history"
 ) {
+    private val json = Json {
+        prettyPrint = true
+        ignoreUnknownKeys = true
+    }
+
     init {
         // Ensure directories exist
         File(promptsDir).mkdirs()
@@ -48,130 +56,86 @@ class FileRepository(
      * @return List of conversation messages
      */
     fun getUserHistory(userId: Long): List<ConversationMessage> {
-        val historyFile = File(historyDir, "user_${userId}.md")
+        val historyFile = File(historyDir, "user_${userId}.json")
         if (!historyFile.exists()) {
             return emptyList()
         }
 
-        val messages = mutableListOf<ConversationMessage>()
-        val lines = historyFile.readLines()
-
-        var currentRole: String? = null
-        val currentContent = StringBuilder()
-
-        for (line in lines) {
-            when {
-                line.startsWith("## User:") -> {
-                    if (currentRole != null) {
-                        messages.add(ConversationMessage(currentRole, currentContent.toString().trim()))
-                        currentContent.clear()
-                    }
-                    currentRole = "user"
-                }
-                line.startsWith("## Assistant:") -> {
-                    if (currentRole != null) {
-                        messages.add(ConversationMessage(currentRole, currentContent.toString().trim()))
-                        currentContent.clear()
-                    }
-                    currentRole = "assistant"
-                }
-                line.startsWith("## System:") -> {
-                    if (currentRole != null) {
-                        messages.add(ConversationMessage(currentRole, currentContent.toString().trim()))
-                        currentContent.clear()
-                    }
-                    currentRole = "system"
-                }
-                line.startsWith("---") -> {
-                    // Separator, continue
-                }
-                else -> {
-                    if (currentRole != null && line.isNotBlank()) {
-                        currentContent.append(line).append("\n")
-                    }
-                }
-            }
+        return try {
+            val historyData = json.decodeFromString<ConversationHistory>(historyFile.readText())
+            historyData.messages
+        } catch (e: Exception) {
+            emptyList()
         }
-
-        // Add last message if exists
-        if (currentRole != null && currentContent.isNotEmpty()) {
-            messages.add(ConversationMessage(currentRole, currentContent.toString().trim()))
-        }
-
-        return messages
     }
 
     /**
      * Save user message to history
      */
     fun saveUserMessage(userId: Long, message: String) {
-        val historyFile = File(historyDir, "user_${userId}.md")
-        val timestamp = java.time.LocalDateTime.now().toString()
-
-        val content = buildString {
-            append("\n## User:\n")
-            append("*${timestamp}*\n\n")
-            append(message)
-            append("\n\n---\n")
-        }
-
-        Files.write(
-            Paths.get(historyFile.absolutePath),
-            content.toByteArray(),
-            StandardOpenOption.CREATE,
-            StandardOpenOption.APPEND
+        val timestamp = LocalDateTime.now().toString()
+        val conversationMessage = ConversationMessage(
+            role = "user",
+            content = message,
+            timestamp = timestamp
         )
+        addMessageToHistory(userId, conversationMessage)
     }
 
     /**
      * Save assistant response to history
      */
     fun saveAssistantMessage(userId: Long, message: String) {
-        val historyFile = File(historyDir, "user_${userId}.md")
-        val timestamp = java.time.LocalDateTime.now().toString()
-
-        val content = buildString {
-            append("\n## Assistant:\n")
-            append("*${timestamp}*\n\n")
-            append(message)
-            append("\n\n---\n")
-        }
-
-        Files.write(
-            Paths.get(historyFile.absolutePath),
-            content.toByteArray(),
-            StandardOpenOption.CREATE,
-            StandardOpenOption.APPEND
+        val timestamp = LocalDateTime.now().toString()
+        val conversationMessage = ConversationMessage(
+            role = "assistant",
+            content = message,
+            timestamp = timestamp
         )
+        addMessageToHistory(userId, conversationMessage)
     }
 
     /**
      * Save system message to history (e.g., conversation summary)
      */
     fun saveSystemMessage(userId: Long, message: String) {
-        val historyFile = File(historyDir, "user_${userId}.md")
-        val timestamp = java.time.LocalDateTime.now().toString()
+        val timestamp = LocalDateTime.now().toString()
+        val conversationMessage = ConversationMessage(
+            role = "system",
+            content = message,
+            timestamp = timestamp
+        )
+        addMessageToHistory(userId, conversationMessage)
+    }
 
-        val content = buildString {
-            append("\n## System:\n")
-            append("*${timestamp}*\n\n")
-            append(message)
-            append("\n\n---\n")
+    /**
+     * Add a message to user's conversation history
+     */
+    private fun addMessageToHistory(userId: Long, message: ConversationMessage) {
+        val historyFile = File(historyDir, "user_${userId}.json")
+
+        val history = if (historyFile.exists()) {
+            try {
+                json.decodeFromString<ConversationHistory>(historyFile.readText())
+            } catch (e: Exception) {
+                ConversationHistory(messages = emptyList())
+            }
+        } else {
+            ConversationHistory(messages = emptyList())
         }
 
-        Files.write(
-            Paths.get(historyFile.absolutePath),
-            content.toByteArray(),
-            StandardOpenOption.CREATE,
-            StandardOpenOption.APPEND
+        val updatedHistory = ConversationHistory(
+            messages = history.messages + message
         )
+
+        historyFile.writeText(json.encodeToString(updatedHistory))
     }
 
     /**
      * Clear history for a specific user
      */
     fun clearUserHistory(userId: Long) {
-        val historyFile = File(historyDir, "user_${userId}.md")
+        val historyFile = File(historyDir, "user_${userId}.json")
         if (historyFile.exists()) {
             historyFile.delete()
         }
@@ -179,9 +143,23 @@ class FileRepository(
 }
 
 /**
+ * Conversation history container
+ */
+@Serializable
+data class ConversationHistory(
+    @SerialName("messages")
+    val messages: List<ConversationMessage>
+)
+
+/**
  * Represents a single message in a conversation
  */
+@Serializable
 data class ConversationMessage(
+    @SerialName("role")
     val role: String,  // "user", "assistant", or "system"
-    val content: String
+    @SerialName("content")
+    val content: String,
+    @SerialName("timestamp")
+    val timestamp: String? = null
 )
