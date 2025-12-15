@@ -63,7 +63,7 @@ class McpClient(
 
         try {
             // Give the server a moment to start up before sending requests
-            kotlinx.coroutines.delay(500)
+            delay(500)
 
             // Step 2: Send MCP initialize request
             logger.info("Sending MCP initialize request to $serverName")
