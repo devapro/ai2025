@@ -8,10 +8,11 @@ This is a Gradle-based Kotlin JVM project using the Gradle Wrapper. Always use `
 
 **Core commands:**
 - `./gradlew run` - Build and run the Telegram bot application
-- `./gradlew build` - Build the project without running
+- `./gradlew build` - Build the project (includes fat JAR creation)
 - `./gradlew check` - Run all checks including tests
 - `./gradlew test` - Run tests only
 - `./gradlew clean` - Clean build outputs
+- `./gradlew jar` - Create fat JAR with all dependencies in `app/build/libs/`
 
 **Test commands:**
 - `./gradlew test` - Run all tests
@@ -58,6 +59,7 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
 - `buildSrc/` - Convention plugins for shared build logic
   - `kotlin-jvm.gradle.kts` - Shared Kotlin JVM configuration
   - Configures: Java 21 toolchain, test logging with JUnit Platform
+  - Applied to both `app` and `utils` modules via `buildsrc.convention.kotlin-jvm` plugin
 
 **Component architecture (within app module):**
 - `di/` - Dependency Injection configuration
@@ -137,19 +139,46 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
 - dotenv-kotlin 6.5.1 - Environment variable management from `.env` files
 - SLF4J Simple 2.0.16 - Simple logging implementation
 
+**Token Management:**
+- jtokkit 1.1.0 - Token counting library for OpenAI models
+  - Accurate token counting for GPT models
+  - Used for tracking prompt and completion token usage
+  - Helps manage API costs and context limits
+
 **Repositories:**
 - Maven Central - Primary dependency source
+- JitPack - Required for kotlin-telegram-bot library
+
+## Recent Development History
+
+Based on git commit history, recent features include:
+- **Message history in JSON**: Enhanced conversation history storage format
+- **History compacting**: Automatic conversation history management to prevent context overflow
+- **Message count tracking**: Monitor conversation length and message counts
+- **Token limits**: Implementation of token limit handling for OpenAI API
+- **Token calculation**: Accurate token counting using jtokkit library
+
+**Benchmarking results** (`results.md`):
+- Contains performance comparisons of different AI models
+- Includes response time measurements and token usage statistics
+- Useful for model selection and performance optimization
 
 ## Application Flow
 
 1. **Startup** (`App.kt`):
-   - Initialize Koin DI framework with `allModules`
-   - Koin loads environment variables via Dotenv
+   - Initialize SLF4J logger for application logging
+   - Initialize Koin DI framework with `allModules` and SLF4J logger
+   - Koin loads environment variables via Dotenv (fails if required vars missing)
    - Koin creates all components (FileRepository, AiAgent, TelegramBot) as singletons
    - Components are wired automatically based on DI definitions in `AppDi.kt`
-   - Get TelegramBot from Koin container
-   - Register shutdown hook (stops bot, closes agent, stops Koin)
-   - Start bot polling loop
+   - Get TelegramBot and AiAgent instances from Koin container
+   - Register shutdown hook that executes on JVM termination:
+     - Stops TelegramBot polling
+     - Closes AiAgent resources (HTTP client)
+     - Stops Koin DI framework
+   - Start bot polling loop with `telegramBot.start()`
+   - Main thread waits indefinitely (`Thread.currentThread().join()`)
+   - Any fatal errors trigger Koin shutdown and exception re-throw
 
 2. **Message Processing** (`TelegramBot.kt`):
    - Receive user message
@@ -194,6 +223,7 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
 - Components in dedicated packages: `agent/`, `bot/`, `repository/`
 - Each component in its own file
 - Tests mirror source structure
+- Build outputs: `app/build/libs/app.jar` (fat JAR with all dependencies)
 
 **Coding standards:**
 - Use `@Serializable` annotation on data classes that need JSON serialization
@@ -203,6 +233,13 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
 - Define all dependencies in `AppDi.kt` using Koin DSL
 - Use constructor injection for all components (dependencies passed as constructor parameters)
 - Retrieve components from Koin using `koin.get<ComponentType>()`
+
+**Build configuration:**
+- `app/build.gradle.kts` configures the Application plugin with main class
+- JAR task configured to create fat JAR (includes all runtime dependencies)
+- Duplicates strategy set to EXCLUDE to avoid conflicts
+- Manifest includes Main-Class attribute for executable JAR
+- Run directly: `java -jar app/build/libs/app.jar`
 
 **Conversation history format:**
 ```markdown
@@ -259,10 +296,20 @@ response content
 
 **When debugging:**
 - Check logs: `docker-compose logs -f` (Docker) or console output (local)
-- Verify `.env` file exists and has correct values
-- Check `history/` directory for conversation files
+- Verify `.env` file exists and has correct values (use `.env.example` as template)
+- Check `history/` directory for conversation files (auto-created if missing)
 - Test OpenAI API key: ensure valid and has credits
 - Koin logs dependency resolution during startup - check for DI errors
+- Review `results.md` for performance benchmarks and model comparisons
+
+**Project documentation files:**
+- `README.md` - User-facing documentation with setup and usage instructions
+- `CLAUDE.md` - This file - developer guidance for Claude Code
+- `DI_IMPLEMENTATION.md` - Detailed dependency injection implementation notes
+- `IMPLEMENTATION_SUMMARY.md` - Summary of implementation decisions and architecture
+- `MARKDOWN_IMPLEMENTATION.md` - Details about markdown formatting implementation
+- `PLANNING_AGENT.md` - Planning and agent architecture documentation
+- `results.md` - AI model benchmarking results and performance data
 
 ## Dependency Injection (Koin)
 
@@ -274,18 +321,29 @@ val appModule = module {
     // Configuration layer - Dotenv and environment variables
     single<Dotenv> { dotenv { ignoreIfMissing = true } }
 
-    // Named qualifiers for configuration values
-    single(named("openAiApiKey")) { get<Dotenv>()["OPENAI_API_KEY"] }
-    single(named("telegramBotToken")) { get<Dotenv>()["TELEGRAM_BOT_TOKEN"] }
+    // Named qualifiers for configuration values with validation
+    single(named("openAiApiKey")) {
+        get<Dotenv>()["OPENAI_API_KEY"]
+            ?: throw IllegalStateException("OPENAI_API_KEY environment variable is required")
+    }
+    single(named("telegramBotToken")) {
+        get<Dotenv>()["TELEGRAM_BOT_TOKEN"]
+            ?: throw IllegalStateException("TELEGRAM_BOT_TOKEN environment variable is required")
+    }
     single(named("promptsDir")) { get<Dotenv>()["PROMPTS_DIR"] ?: "promts" }
     single(named("historyDir")) { get<Dotenv>()["HISTORY_DIR"] ?: "history" }
 
-    // Application components as singletons
+    // Application components as singletons with constructor injection
     single { FileRepository(get(named("promptsDir")), get(named("historyDir"))) }
     single { AiAgent(get(named("openAiApiKey")), get()) }
     single { TelegramBot(get(named("telegramBotToken")), get()) }
 }
 ```
+
+**Error handling:**
+- Required environment variables throw `IllegalStateException` if missing
+- Application fails fast during startup if configuration is invalid
+- Clear error messages indicate which variable is missing
 
 **Adding new components:**
 1. Add component definition to `appModule` in `AppDi.kt`
