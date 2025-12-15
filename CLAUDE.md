@@ -39,12 +39,15 @@ The application uses environment variables from a `.env` file:
 **Optional variables:**
 - `PROMPTS_DIR` - Directory for prompt files (default: `promts`)
 - `HISTORY_DIR` - Directory for conversation history (default: `history`)
+- `MCP_CONFIG_PATH` - Path to MCP configuration file (default: `mcp-config.json`)
 
 **Important files:**
 - `.env` - Configuration file with secrets (git-ignored)
 - `promts/system.md` - System prompt for AI agent (customizable)
 - `promts/assistant.md` - Assistant prompt shown at start of conversation (customizable)
 - `history/` - User conversation history (git-ignored, auto-created)
+- `mcp-config.json` - MCP server configuration (git-ignored, contains API keys/credentials)
+- `mcp-config.json.example` - Example MCP configuration file
 
 ## Project Architecture
 
@@ -73,10 +76,12 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
   - **Markdown support**: All messages sent with ParseMode.MARKDOWN
   - Injected as singleton via Koin
 - `agent/` - AI Agent component
-  - `AiAgent.kt` - Manages AI conversations using OpenAI API directly
-  - Uses Ktor HTTP client for API communication
+  - `AiAgent.kt` - Manages AI conversations using OpenAI API with MCP tool support
+  - Uses shared Ktor HTTP client for API communication
   - Handles conversation context and history
-  - **JSON mode enabled**: Forces OpenAI to return structured JSON responses
+  - **MCP Tool Integration**: Automatically uses external tools when needed
+  - **Function Calling**: Implements OpenAI function calling for tool execution
+  - **Multi-turn conversations**: Handles tool calls across multiple API requests (max 5 iterations)
   - **Response format**: Answer response with fields:
     - `type`: Always "answer"
     - `text`: Full answer text with markdown formatting
@@ -85,20 +90,33 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
   - **General AI Assistant**: Answers questions, provides explanations, offers advice
   - **Performance tracking**: Measures response time and token usage
   - Includes data classes for OpenAI request/response serialization
-  - Injected as singleton via Koin
+  - Injected as singleton via Koin with dependencies: apiKey, FileRepository, McpManager, HttpClient
+- `mcp/` - Model Context Protocol integration
+  - `model/McpModels.kt` - JSON-RPC and MCP protocol data structures
+  - `transport/McpTransport.kt` - Transport interface for stdio and HTTP
+  - `transport/StdioTransport.kt` - Local process transport (npx, python scripts)
+  - `transport/HttpTransport.kt` - Remote HTTP server transport
+  - `client/McpClient.kt` - Single server client with tool caching and execution
+  - `config/McpConfig.kt` - Configuration data classes
+  - `config/McpConfigLoader.kt` - JSON config file loader
+  - `McpManager.kt` - Multi-server orchestrator, parallel initialization, tool routing
+  - All components support graceful degradation if MCP is not configured
 - `repository/` - File Repository component
   - `FileRepository.kt` - Manages prompts and conversation history
-  - Stores user history in markdown files: `history/user_{userId}.md`
+  - Stores user history in JSON format: `history/user_{userId}.json`
   - Reads system prompt from: `promts/system.md`
   - Reads assistant prompt from: `promts/assistant.md`
   - Injected as singleton via Koin
 
 **Key architectural patterns:**
 - **Dependency Injection**: All components managed by Koin DI framework
-- **Clean separation of concerns**: Bot → Agent → Repository
+- **Clean separation of concerns**: Bot → Agent → Repository, Agent → MCP Manager
 - **Singleton pattern**: All main components are singletons managed by Koin
-- **File-based storage** for prompts and history (markdown format)
-- **Coroutines** for async message processing
+- **Shared HTTP client**: Single Ktor HttpClient instance used by both OpenAI and MCP (DI-managed)
+- **File-based storage** for prompts and history (JSON format)
+- **Tool calling loop**: Multi-turn conversation support for tool execution (max 5 iterations)
+- **Graceful degradation**: Agent works without MCP if not configured
+- **Coroutines** for async message processing and parallel MCP server initialization
 - **Convention plugins** in `buildSrc` centralize build configuration
 - **Version catalog** in `gradle/libs.versions.toml` manages all dependency versions
 - **Docker multi-stage build** for production deployment
@@ -162,6 +180,147 @@ Based on git commit history, recent features include:
 - Contains performance comparisons of different AI models
 - Includes response time measurements and token usage statistics
 - Useful for model selection and performance optimization
+
+## MCP Integration Architecture
+
+### Overview
+
+The Model Context Protocol (MCP) integration enables the AI agent to use external tools dynamically based on conversation needs. The implementation follows a layered architecture with clean separation of concerns.
+
+### Component Layers
+
+**1. Transport Layer** (`mcp/transport/`):
+- Abstraction for different communication protocols
+- **StdioTransport**: Launches external processes, communicates via stdin/stdout with newline-delimited JSON-RPC
+- **HttpTransport**: Sends JSON-RPC requests to remote HTTP servers
+- Timeout handling (default: 30s), error recovery, graceful failure
+
+**2. Client Layer** (`mcp/client/`):
+- **McpClient**: Manages single server connection
+- Tool discovery via `tools/list` method (cached for performance)
+- Tool execution via `tools/call` method
+- Thread-safe with Mutex for concurrent requests
+- UUID-based request IDs for correlation
+
+**3. Configuration Layer** (`mcp/config/`):
+- **McpConfig**: Data classes for server configuration
+- **McpConfigLoader**: Loads `mcp-config.json`, validates, handles missing files gracefully
+- Supports both stdio and HTTP server types
+- Per-server configuration: command, args, env vars, URL, headers, timeout
+
+**4. Manager Layer** (`mcp/`):
+- **McpManager**: Orchestrates multiple MCP servers
+- Parallel server initialization (performance optimization)
+- Tool routing (maps tool names to servers)
+- Availability checking for graceful degradation
+- Provides unified tool interface to AiAgent
+
+### OpenAI Function Calling Integration
+
+**Tool Discovery**:
+1. On startup, McpManager initializes all enabled servers
+2. Each server's tools are fetched via `tools/list`
+3. MCP tools are converted to OpenAI tool format (name, description, parameters)
+4. Tool list is cached and provided to AiAgent
+
+**Execution Flow**:
+1. User sends message to bot
+2. AiAgent builds message list with conversation history
+3. Available tools are fetched from McpManager
+4. OpenAI API called with tools parameter
+5. **Tool Calling Loop** (max 5 iterations):
+   - If `finish_reason == "tool_calls"`:
+     - Parse tool calls from response
+     - Execute each tool via McpManager
+     - Add tool results to message list
+     - Call OpenAI API again with updated messages
+   - If `finish_reason == "stop"`:
+     - Parse final response, save to history, return to user
+   - If max iterations exceeded:
+     - Return error message to prevent infinite loops
+
+**Data Flow**:
+```
+User Message
+  ↓
+TelegramBot
+  ↓
+AiAgent.processMessage()
+  ├→ Get tools from McpManager.getAllTools()
+  ├→ Call OpenAI with tools
+  ├→ If tool_calls:
+  │   ├→ McpManager.callTool()
+  │   ├→ McpClient.callTool()
+  │   └→ Transport.send()
+  └→ Return final response
+```
+
+### Configuration File Format
+
+Location: `mcp-config.json` (git-ignored)
+
+Example:
+```json
+{
+  "mcpServers": [
+    {
+      "name": "filesystem",
+      "enabled": true,
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"],
+      "timeout": 30000
+    },
+    {
+      "name": "api",
+      "enabled": true,
+      "type": "http",
+      "url": "https://api.example.com/mcp",
+      "headers": {"Authorization": "Bearer token"},
+      "timeout": 15000
+    }
+  ]
+}
+```
+
+### Error Handling
+
+**Configuration Errors**:
+- Missing config file → Log warning, continue without tools
+- Invalid JSON → Log error, continue without tools
+- Invalid server config → Skip that server, load others
+
+**Runtime Errors**:
+- Server initialization fails → Skip that server, log error
+- Tool execution fails → Return error to OpenAI as tool result
+- Transport timeout → Return timeout error message
+- Max iterations exceeded → Return error to user
+
+**Graceful Degradation**:
+- Agent works fully without MCP configuration
+- Tools only used if at least one server is available
+- Failed servers don't block other servers or application startup
+
+### Performance Optimizations
+
+- **Parallel initialization**: All servers start concurrently using `async`/`awaitAll`
+- **Tool caching**: Tools list cached after first fetch
+- **Shared HTTP client**: Single Ktor client instance for all HTTP communication
+- **Connection pooling**: Stdio processes kept alive for duration of bot runtime
+
+### Security Considerations
+
+- `mcp-config.json` is git-ignored (may contain secrets)
+- Filesystem server requires explicit allowed directories
+- Tool execution limited to max 5 iterations (prevents infinite loops)
+- 30-second default timeout prevents resource exhaustion
+- All tool calls logged for audit purposes
+
+### Documentation
+
+- **User Guide**: `MCP_GUIDE.md` - Comprehensive setup and usage instructions
+- **Example Config**: `mcp-config.json.example` - Sample configurations for popular servers
+- **README Section**: Brief overview and quick start guide
 
 ## Application Flow
 

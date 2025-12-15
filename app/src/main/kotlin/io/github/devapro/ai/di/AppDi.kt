@@ -4,8 +4,14 @@ import io.github.cdimascio.dotenv.Dotenv
 import io.github.cdimascio.dotenv.dotenv
 import io.github.devapro.ai.agent.AiAgent
 import io.github.devapro.ai.bot.TelegramBot
+import io.github.devapro.ai.mcp.McpManager
+import io.github.devapro.ai.mcp.config.McpConfigLoader
 import io.github.devapro.ai.repository.FileRepository
-import org.koin.core.module.dsl.singleOf
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.serialization.kotlinx.json.*
+import kotlinx.serialization.json.Json
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -39,6 +45,46 @@ val appModule = module {
         get<Dotenv>()["HISTORY_DIR"] ?: "history"
     }
 
+    single(qualifier = named("mcpConfigPath")) {
+        get<Dotenv>()["MCP_CONFIG_PATH"] ?: "mcp-config.json"
+    }
+
+    // Shared HTTP client (used by both AiAgent and MCP)
+    single {
+        HttpClient(CIO) {
+            install(ContentNegotiation) {
+                json(Json {
+                    ignoreUnknownKeys = true
+                    prettyPrint = true
+                })
+            }
+            install(io.ktor.client.plugins.HttpTimeout) {
+                requestTimeoutMillis = 520_000
+            }
+        }
+    }
+
+    // MCP config loader
+    single {
+        McpConfigLoader(
+            configPath = get(qualifier = named("mcpConfigPath"))
+        )
+    }
+
+    // MCP config (loaded once at startup)
+    single {
+        val configLoader = get<McpConfigLoader>()
+        configLoader.loadConfig()
+    }
+
+    // MCP manager
+    single {
+        McpManager(
+            config = get(),
+            httpClient = get()
+        )
+    }
+
     // Repository layer
     single {
         FileRepository(
@@ -47,11 +93,13 @@ val appModule = module {
         )
     }
 
-    // Agent layer
+    // Agent layer (now with MCP support)
     single {
         AiAgent(
             apiKey = get(qualifier = named("openAiApiKey")),
-            fileRepository = get()
+            fileRepository = get(),
+            mcpManager = get(),
+            httpClient = get()
         )
     }
 

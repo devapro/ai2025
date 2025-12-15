@@ -44,3 +44,4 @@ bin/
 ### Application ###
 .env
 history/
+mcp-config.json

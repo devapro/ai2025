@@ -13,6 +13,7 @@ An AI-powered Telegram bot that provides helpful answers to user questions. The 
 - **Optional Summaries**: Concise one-line summaries for quick understanding
 - **Conversation History**: Maintains conversation context for each user
 - **Markdown Formatting**: Rich formatting for clear, structured responses
+- **MCP Tool Support**: Connect to external tools and data sources via Model Context Protocol
 - **Docker Support**: Fully containerized deployment
 
 ## Prerequisites
@@ -154,6 +155,71 @@ It's an excellent choice for beginners and professionals alike.
 • Response time: 1234ms
 • Tokens used: 156 (prompt: 89, completion: 67)
 ```
+
+## MCP Server Integration
+
+This bot supports the **Model Context Protocol (MCP)**, enabling the AI agent to use external tools and data sources automatically.
+
+### What is MCP?
+
+MCP is an open protocol that allows AI assistants to securely connect to:
+- **File Systems**: Read and write files on your computer
+- **Search Engines**: Search the web for current information
+- **Databases**: Query databases for data
+- **APIs**: Connect to any HTTP-based service
+- **Custom Tools**: Build and connect your own tools
+
+### Quick Setup
+
+1. **Copy the example configuration:**
+   ```bash
+   cp mcp-config.json.example mcp-config.json
+   ```
+
+2. **Enable desired servers** by setting `"enabled": true` in the configuration
+
+3. **Add credentials** (API keys, database connections) as needed
+
+4. **Restart the bot** to load the MCP servers
+
+### Example: Filesystem Server
+
+```json
+{
+  "mcpServers": [
+    {
+      "name": "filesystem",
+      "enabled": true,
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/username/Documents"]
+    }
+  ]
+}
+```
+
+With this configured, you can ask:
+- "List the files in my Documents folder"
+- "Read the contents of todo.txt"
+- "Create a file called notes.md with a shopping list"
+
+The AI will automatically use the filesystem tool when appropriate!
+
+### Available MCP Servers
+
+- **Filesystem**: `@modelcontextprotocol/server-filesystem`
+- **Brave Search**: `@modelcontextprotocol/server-brave-search`
+- **GitHub**: `@modelcontextprotocol/server-github`
+- **PostgreSQL**: `@modelcontextprotocol/server-postgres`
+- **Custom HTTP**: Connect to your own services
+
+### Documentation
+
+For detailed configuration instructions, available servers, and examples, see **[MCP_GUIDE.md](MCP_GUIDE.md)**.
+
+### Security Note
+
+⚠️ The `mcp-config.json` file may contain sensitive information (API keys, credentials). It is automatically excluded from version control. Never commit it to Git!
 
 ## Development
 

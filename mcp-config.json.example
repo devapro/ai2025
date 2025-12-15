@@ -1,0 +1,73 @@
+{
+  "mcpServers": [
+    {
+      "name": "filesystem",
+      "description": "Local file system operations",
+      "enabled": false,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/username/Documents"
+      ],
+      "env": {},
+      "timeout": 30000
+    },
+    {
+      "name": "brave-search",
+      "description": "Web search via Brave Search API",
+      "enabled": false,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "your_brave_api_key_here"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "postgres",
+      "description": "PostgreSQL database access",
+      "enabled": false,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://user:password@localhost/database"
+      ],
+      "timeout": 30000
+    },
+    {
+      "name": "github",
+      "description": "GitHub repository access",
+      "enabled": false,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your_github_token_here"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "custom-api",
+      "description": "Custom remote MCP server",
+      "enabled": false,
+      "type": "http",
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer your_token_here",
+        "X-API-Version": "1.0"
+      },
+      "timeout": 15000
+    }
+  ]
+}
