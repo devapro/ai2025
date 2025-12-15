@@ -8,13 +8,16 @@ import kotlinx.serialization.json.JsonObject
 /**
  * JSON-RPC 2.0 Request
  * Base structure for all MCP protocol requests
+ *
+ * Note: If id is null, this is a notification (no response expected)
+ * If id is present, this is a request (response expected)
  */
 @Serializable
 data class JsonRpcRequest(
     @SerialName("jsonrpc")
     val jsonrpc: String = "2.0",
     @SerialName("id")
-    val id: String,
+    val id: String?,
     @SerialName("method")
     val method: String,
     @SerialName("params")

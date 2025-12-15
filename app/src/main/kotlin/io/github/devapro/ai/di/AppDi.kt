@@ -56,6 +56,8 @@ val appModule = module {
                 json(Json {
                     ignoreUnknownKeys = true
                     prettyPrint = true
+                    encodeDefaults = true  // Include default values like jsonrpc = "2.0"
+                    explicitNulls = false  // Omit null fields (critical for JSON-RPC notifications)
                 })
             }
             install(io.ktor.client.plugins.HttpTimeout) {

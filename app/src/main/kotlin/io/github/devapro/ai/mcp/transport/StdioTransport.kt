@@ -4,6 +4,7 @@ import io.github.devapro.ai.mcp.model.JsonRpcError
 import io.github.devapro.ai.mcp.model.JsonRpcRequest
 import io.github.devapro.ai.mcp.model.JsonRpcResponse
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.encodeToString
@@ -13,6 +14,7 @@ import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
+import kotlinx.coroutines.launch
 
 /**
  * Stdio-based transport for local MCP servers
@@ -36,6 +38,8 @@ class StdioTransport(
     private val json = Json {
         ignoreUnknownKeys = true
         prettyPrint = false  // Compact JSON for network efficiency
+        encodeDefaults = true  // Include default values like jsonrpc = "2.0"
+        explicitNulls = false  // Omit null fields (critical for JSON-RPC notifications)
     }
 
     @Volatile
@@ -63,12 +67,69 @@ class StdioTransport(
             writer = BufferedWriter(OutputStreamWriter(process!!.outputStream, Charsets.UTF_8))
             reader = BufferedReader(InputStreamReader(process!!.inputStream, Charsets.UTF_8))
 
-            logger.info("Stdio transport initialized successfully")
+            // Start stderr reader in background to capture server logs
+            val errorReader = BufferedReader(InputStreamReader(process!!.errorStream, Charsets.UTF_8))
+            kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                try {
+                    errorReader.useLines { lines ->
+                        lines.forEach { line ->
+                            if (line.isNotBlank()) {
+                                logger.info("[Server stderr] $line")
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    logger.debug("Stderr reader closed: ${e.message}")
+                }
+            }
+
+            // Check if process is still alive
+            logger.info("DEBUG: About to delay 100ms")
+            delay(100) // Give it a moment
+            logger.info("DEBUG: After delay, checking if process is alive")
+
+            if (!process!!.isAlive) {
+                logger.error("❌ Process died immediately after starting")
+                val exitCode = process!!.exitValue()
+                logger.error("Exit code: $exitCode")
+                close()
+                return@withContext false
+            }
+
+            logger.info("✅ Stdio transport initialized successfully (process alive)")
+            logger.info("DEBUG: About to return true from transport.initialize()")
             true
         } catch (e: Exception) {
             logger.error("Failed to initialize stdio transport: ${e.message}", e)
             close()
             false
+        }
+    }
+
+    /**
+     * Send a notification (fire-and-forget, no response expected)
+     *
+     * According to JSON-RPC 2.0, notifications have no id field and
+     * the server must not send a response.
+     */
+    suspend fun sendNotification(request: JsonRpcRequest) = withContext(Dispatchers.IO) {
+        val currentWriter = writer
+        if (currentWriter == null) {
+            logger.error("Transport not initialized")
+            return@withContext
+        }
+
+        try {
+            val requestJson = json.encodeToString(request)
+            logger.info("📤 Sending notification: ${request.method}")
+            logger.debug("Notification JSON: $requestJson")
+
+            currentWriter.write(requestJson)
+            currentWriter.newLine()
+            currentWriter.flush()
+            logger.info("✅ Notification sent (no response expected)")
+        } catch (e: Exception) {
+            logger.error("Error sending notification: ${e.message}", e)
         }
     }
 
@@ -103,24 +164,62 @@ class StdioTransport(
             withTimeout(timeout) {
                 // Serialize request to JSON
                 val requestJson = json.encodeToString(request)
-                logger.debug("Sending request: $requestJson")
+                logger.info("📤 Sending ${request.method} request to server")
+                logger.info("DEBUG: Request JSON: $requestJson")
 
                 // Write request with newline delimiter
+                logger.info("DEBUG: Writing to stdin...")
                 currentWriter.write(requestJson)
+                logger.info("DEBUG: Writing newline...")
                 currentWriter.newLine()
+                logger.info("DEBUG: Flushing writer...")
                 currentWriter.flush()
+                logger.info("DEBUG: Flush complete, request sent!")
+
+                logger.info("⏳ Waiting for ${request.method} response...")
+                logger.info("DEBUG: About to call readLine() on reader")
+
+                // Check if process is still alive before reading
+                if (!currentProcess.isAlive) {
+                    logger.error("❌ Process died while waiting for response!")
+                    logger.error("Exit code: ${currentProcess.exitValue()}")
+                    throw Exception("Process died while waiting for response")
+                }
+
+                logger.info("DEBUG: Process is alive, about to read response...")
 
                 // Read response line
                 val responseLine = currentReader.readLine()
-                    ?: throw Exception("No response from server (EOF)")
+                logger.info("DEBUG: readLine() returned: ${if (responseLine == null) "NULL" else "string of ${responseLine.length} chars"}")
 
-                logger.debug("Received response: $responseLine")
+                if (responseLine == null) {
+                    logger.error("❌ No response from server (EOF reached)")
+                    logger.error("Server process may have crashed or closed connection")
+                    // Check if process is still alive
+                    if (currentProcess.isAlive) {
+                        logger.error("Process is still alive but sent EOF - possible communication issue")
+                    } else {
+                        logger.error("Process has died - exit code: ${currentProcess.exitValue()}")
+                    }
+                    throw Exception("No response from server (EOF)")
+                }
+
+                logger.info("📥 Received ${request.method} response (${responseLine.length} chars)")
+                logger.debug("Response JSON: $responseLine")
 
                 // Parse response
-                json.decodeFromString<JsonRpcResponse>(responseLine)
+                try {
+                    val response = json.decodeFromString<JsonRpcResponse>(responseLine)
+                    logger.info("✅ Response parsed successfully")
+                    response
+                } catch (e: Exception) {
+                    logger.error("❌ Failed to parse response: ${e.message}")
+                    logger.error("Raw response: $responseLine")
+                    throw e
+                }
             }
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-            logger.error("Request timed out after ${timeout}ms")
+            logger.error("❌ Request timed out after ${timeout}ms")
             JsonRpcResponse(
                 id = request.id,
                 error = JsonRpcError(

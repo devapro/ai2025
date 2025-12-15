@@ -2,6 +2,7 @@ package io.github.devapro.ai.mcp.client
 
 import io.github.devapro.ai.mcp.model.*
 import io.github.devapro.ai.mcp.transport.McpTransport
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
@@ -29,6 +30,8 @@ class McpClient(
     private val json = Json {
         ignoreUnknownKeys = true
         prettyPrint = false
+        encodeDefaults = true  // Include default values like jsonrpc = "2.0"
+        explicitNulls = false  // Omit null fields (critical for JSON-RPC notifications)
     }
 
     private val mutex = Mutex()
@@ -37,27 +40,91 @@ class McpClient(
 
     /**
      * Initialize the client and connect to the server
+     * Performs the MCP handshake: initialize request -> initialized notification
      *
      * @return true if initialization succeeded
      */
-    suspend fun initialize(): Boolean {
-        return mutex.withLock {
-            if (initialized) {
-                logger.warn("Client already initialized: $serverName")
-                return true
+    suspend fun initialize(): Boolean = mutex.withLock {
+        if (initialized) {
+            logger.warn("Client already initialized: $serverName")
+            return@withLock true
+        }
+
+        logger.info("Initializing MCP client for server: $serverName")
+        logger.info("DEBUG: About to initialize transport for $serverName")
+
+        // Step 1: Initialize transport (start process/connection)
+        val transportReady = transport.initialize()
+        logger.info("DEBUG: Transport initialize returned: $transportReady")
+        if (!transportReady) {
+            logger.error("Failed to initialize transport: $serverName")
+            return@withLock false
+        }
+
+        try {
+            // Give the server a moment to start up before sending requests
+            kotlinx.coroutines.delay(500)
+
+            // Step 2: Send MCP initialize request
+            logger.info("Sending MCP initialize request to $serverName")
+            val initRequest = JsonRpcRequest(
+                id = UUID.randomUUID().toString(),
+                method = "initialize",
+                params = buildJsonObject {
+                    put("protocolVersion", "2024-11-05")
+                    put("clientInfo", buildJsonObject {
+                        put("name", "ai-telegram-bot")
+                        put("version", "1.0.0")
+                    })
+                    put("capabilities", buildJsonObject {
+                        // Empty capabilities for now
+                    })
+                }
+            )
+
+            logger.info("Waiting for initialize response from $serverName (timeout: 30s)...")
+            val initResponse = transport.send(initRequest)
+
+            if (initResponse.error != null) {
+                logger.error("❌ Initialize request failed: ${initResponse.error.message}")
+                logger.error("Error code: ${initResponse.error.code}, data: ${initResponse.error.data}")
+                return@withLock false
             }
 
-            logger.info("Initializing MCP client for server: $serverName")
-            val success = transport.initialize()
+            logger.info("✅ Initialize response received from $serverName")
 
-            if (success) {
-                initialized = true
-                logger.info("MCP client initialized successfully: $serverName")
+            // Step 3: Send initialized notification (fire-and-forget)
+            logger.info("Sending initialized notification to $serverName")
+            val initializedNotification = JsonRpcRequest(
+                id = null,  // No ID = notification (no response expected per JSON-RPC 2.0)
+                method = "notifications/initialized",
+                params = null
+            )
+
+            // Send as notification without waiting for response
+            if (transport is io.github.devapro.ai.mcp.transport.StdioTransport) {
+                transport.sendNotification(initializedNotification)
             } else {
-                logger.error("Failed to initialize MCP client: $serverName")
+                // For HTTP transport, just send normally (they handle notifications differently)
+                try {
+                    transport.send(initializedNotification)
+                } catch (e: Exception) {
+                    logger.debug("Initialized notification error (ignored): ${e.message}")
+                }
             }
+            logger.info("Initialized notification sent")
 
-            success
+            initialized = true
+            logger.info("✅ MCP handshake completed successfully: $serverName")
+            true
+
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            logger.error("❌ Timeout during MCP handshake with $serverName (30s exceeded)")
+            logger.error("Server may not be responding or doesn't support MCP protocol")
+            false
+        } catch (e: Exception) {
+            logger.error("❌ Failed during MCP handshake with $serverName: ${e.message}", e)
+            false
         }
     }
 
@@ -87,11 +154,13 @@ class McpClient(
             )
 
             // Send request
+            logger.debug("Sending tools/list request to $serverName")
             val response = transport.send(request)
 
             // Handle error
             if (response.error != null) {
                 logger.error("Error listing tools from $serverName: ${response.error.message}")
+                logger.error("Error code: ${response.error.code}, data: ${response.error.data}")
                 return emptyList()
             }
 
@@ -99,14 +168,16 @@ class McpClient(
             val result = response.result
             if (result == null) {
                 logger.error("No result in tools/list response from $serverName")
+                logger.error("Full response: $response")
                 return emptyList()
             }
 
             try {
+                logger.debug("Parsing tools/list result: $result")
                 val toolListResponse = json.decodeFromString<ToolListResponse>(result.toString())
                 val tools = toolListResponse.tools
 
-                logger.info("Found ${tools.size} tools from $serverName:")
+                logger.info("✅ Found ${tools.size} tools from $serverName:")
                 tools.forEach { tool ->
                     logger.info("  - ${tool.name}: ${tool.description ?: "No description"}")
                 }
@@ -117,6 +188,7 @@ class McpClient(
                 tools
             } catch (e: Exception) {
                 logger.error("Failed to parse tools/list response from $serverName: ${e.message}", e)
+                logger.error("Raw result: $result")
                 emptyList()
             }
         }
