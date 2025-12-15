@@ -4,36 +4,65 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.prompt.executor.clients.openai.OpenAIModels
 import ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
 import ai.koog.agents.core.tools.ToolRegistry
+import io.github.devapro.ai.history.HistoryManager
+import io.github.devapro.ai.mcp.McpInitializer
 import io.github.devapro.ai.repository.FileRepository
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 
 /**
  * AI Agent component that handles conversations using OpenAI API with MCP tool support via Koog
+ *
+ * This component:
+ * - Manages AI conversations with context from history
+ * - Integrates with MCP tools for extended capabilities
+ * - Delegates history lifecycle management to HistoryManager
+ * - Formats responses with performance metrics
  */
 class AiAgent(
     private val apiKey: String,
     private val fileRepository: FileRepository,
-    toolRegistry: ToolRegistry?
+    private val historyManager: HistoryManager,
+    private val mcpInitializer: McpInitializer
 ) {
     private val logger = LoggerFactory.getLogger(AiAgent::class.java)
 
     // Get system prompt once during initialization
     private val systemPrompt = fileRepository.getSystemPrompt()
 
-    // Koog agent with OpenAI and optional MCP tools
-    private val agent = if (toolRegistry != null) {
-        AIAgent(
-            promptExecutor = simpleOpenAIExecutor(apiKey),
-            systemPrompt = systemPrompt,
-            llmModel = OpenAIModels.Chat.GPT4o,
-            toolRegistry = toolRegistry
-        )
-    } else {
-        AIAgent(
-            promptExecutor = simpleOpenAIExecutor(apiKey),
-            systemPrompt = systemPrompt,
-            llmModel = OpenAIModels.Chat.GPT4o
-        )
+    // Tool registry and agent - initialized in init block
+    private val toolRegistry: ToolRegistry?
+    private val agent: AIAgent<String, String>
+
+    init {
+        logger.info("Initializing AI Agent...")
+
+        // Initialize MCP tool registry (blocking call for suspend function)
+        toolRegistry = runBlocking {
+            logger.debug("Initializing MCP tool registry...")
+            mcpInitializer.initialize()
+        }
+
+        // Create Koog agent with OpenAI and optional MCP tools
+        // Note: HistoryManager has its own agent for summarization
+        agent = if (toolRegistry != null) {
+            logger.info("Creating AI agent with MCP tools")
+            AIAgent(
+                promptExecutor = simpleOpenAIExecutor(apiKey),
+                systemPrompt = systemPrompt,
+                llmModel = OpenAIModels.Chat.GPT4o,
+                toolRegistry = toolRegistry
+            )
+        } else {
+            logger.info("Creating AI agent without MCP tools")
+            AIAgent(
+                promptExecutor = simpleOpenAIExecutor(apiKey),
+                systemPrompt = systemPrompt,
+                llmModel = OpenAIModels.Chat.GPT4o
+            )
+        }
+
+        logger.info("AI Agent initialized successfully")
     }
 
     /**
@@ -81,12 +110,9 @@ class AiAgent(
             fileRepository.saveUserMessage(userId, userMessage)
             fileRepository.saveAssistantMessage(userId, formattedResponse)
 
-            // Check if we need to summarize history (every 10 messages)
+            // Check if we need to summarize history (delegated to HistoryManager)
             val newHistoryLength = history.size + 2
-            if (newHistoryLength >= 10 && newHistoryLength % 10 == 0) {
-                logger.info("History length reached $newHistoryLength, creating summary...")
-                summarizeAndReplaceHistory(userId)
-            }
+            historyManager.checkAndSummarizeIfNeeded(userId, newHistoryLength)
 
             return formattedResponse
 
@@ -97,58 +123,9 @@ class AiAgent(
     }
 
     /**
-     * Clear conversation history for a user
+     * Clear conversation history for a user (delegated to HistoryManager)
      */
     fun clearHistory(userId: Long) {
-        fileRepository.clearUserHistory(userId)
-    }
-
-    /**
-     * Summarize conversation history and replace it with the summary
-     */
-    private suspend fun summarizeAndReplaceHistory(userId: Long) {
-        try {
-            val history = fileRepository.getUserHistory(userId)
-            if (history.isEmpty()) return
-
-            // Build conversation text
-            val conversationText = buildString {
-                history.forEach { msg ->
-                    append("${msg.role.uppercase()}: ${msg.content}\n\n")
-                }
-            }
-
-            // Create summarization prompt
-            val summaryPrompt = """
-                Please create a concise summary of the following conversation.
-                Focus on key topics discussed, important information exchanged, and any decisions or conclusions reached.
-                Keep the summary brief but informative.
-
-                Conversation:
-                $conversationText
-            """.trimIndent()
-
-            // Use separate agent for summarization with custom system prompt
-            val summaryAgent = AIAgent(
-                promptExecutor = simpleOpenAIExecutor(apiKey),
-                systemPrompt = "You are a helpful assistant that summarizes conversations.",
-                llmModel = OpenAIModels.Chat.GPT4o
-            )
-
-            val summary = summaryAgent.run(summaryPrompt).trim()
-
-            if (summary.isNotBlank()) {
-                logger.info("Summary created successfully, replacing history")
-                fileRepository.clearUserHistory(userId)
-                fileRepository.saveSystemMessage(userId, "Conversation summary: $summary")
-                logger.info("History replaced with summary")
-            }
-        } catch (e: Exception) {
-            logger.error("Failed to summarize history: ${e.message}", e)
-        }
-    }
-
-    fun close() {
-        // Koog agents don't require explicit cleanup
+        historyManager.clearHistory(userId)
     }
 }
