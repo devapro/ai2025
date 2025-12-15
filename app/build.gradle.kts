@@ -20,6 +20,9 @@ dependencies {
     // Ktor client for HTTP communication
     implementation(libs.bundles.ktorClient)
 
+    // Koog AI Agent framework with MCP support
+    implementation(libs.bundles.koog)
+
     // Telegram bot library
     implementation(libs.telegramBot)
 
@@ -32,9 +35,6 @@ dependencies {
 
     // Logging
     implementation(libs.slf4jSimple)
-
-    // Token counting
-    implementation(libs.jtokkit)
 }
 
 application {

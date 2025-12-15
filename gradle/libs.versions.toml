@@ -5,10 +5,11 @@
 [versions]
 kotlin = "2.2.0"
 kotlinxDatetime = "0.6.1"
-kotlinxSerializationJSON = "1.7.3"
-kotlinxCoroutines = "1.9.0"
+kotlinxSerializationJSON = "1.8.1"
+kotlinxCoroutines = "1.10.2"
 ktor = "3.3.0"
-koog = "0.5.2"
+koog = "0.5.4"
+koogMcp = "0.5.2"
 telegramBot = "6.3.0"
 dotenv = "6.5.1"
 slf4j = "2.0.16"
@@ -16,7 +17,6 @@ exposed = "0.57.0"
 sqliteJdbc = "3.47.1.0"
 socketio = "2.1.0"
 koin = "4.0.0"
-jtokkit = "1.1.0"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -28,6 +28,7 @@ ktorClientCio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktorClientContentNegotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktorSerializationKotlinxJson = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 koogAgents = { module = "ai.koog:koog-agents-jvm", version.ref = "koog" }
+koogAgentsMcp = { module = "ai.koog:agents-mcp-jvm", version.ref = "koogMcp" }
 telegramBot = { module = "io.github.kotlin-telegram-bot.kotlin-telegram-bot:telegram", version.ref = "telegramBot" }
 dotenv = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
 slf4jSimple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
@@ -38,12 +39,12 @@ sqliteJdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqliteJdbc" }
 socketioClient = { module = "io.socket:socket.io-client", version.ref = "socketio" }
 koinCore = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koinLogger = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" }
-jtokkit = { module = "com.knuddels:jtokkit", version.ref = "jtokkit" }
 
 # Libraries can be bundled together for easier import
 [bundles]
 kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerialization", "kotlinxCoroutines"]
 ktorClient = ["ktorClientCore", "ktorClientCio", "ktorClientContentNegotiation", "ktorSerializationKotlinxJson"]
+koog = ["koogAgents", "koogAgentsMcp"]
 exposed = ["exposedCore", "exposedDao", "exposedJdbc"]
 
 [plugins]

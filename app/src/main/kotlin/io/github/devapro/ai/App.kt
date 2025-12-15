@@ -1,11 +1,7 @@
 package io.github.devapro.ai
 
-import io.github.devapro.ai.agent.AiAgent
 import io.github.devapro.ai.bot.TelegramBot
 import io.github.devapro.ai.di.allModules
-import io.github.devapro.ai.mcp.McpManager
-import io.ktor.client.*
-import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.logger.slf4jLogger
@@ -28,35 +24,15 @@ fun main() {
 
         // Get components from Koin
         val koin = KoinPlatformTools.defaultContext().get()
-
-        val mcpManager = koin.get<McpManager>()
         val telegramBot = koin.get<TelegramBot>()
-        val aiAgent = koin.get<AiAgent>()
-        val httpClient = koin.get<HttpClient>()
 
         logger.info("All components initialized via DI")
-
-        // Initialize MCP servers
-        logger.info("Initializing MCP servers...")
-        runBlocking {
-            mcpManager.initialize()
-        }
-
-        if (mcpManager.isAvailable()) {
-            logger.info("MCP tools are available")
-        } else {
-            logger.info("No MCP servers available - running without tools")
-        }
+        // Note: MCP servers are initialized in DI module during ToolRegistry creation
 
         // Add shutdown hook
         Runtime.getRuntime().addShutdownHook(Thread {
             logger.info("Shutting down...")
-            runBlocking {
-                mcpManager.close()
-            }
             telegramBot.stop()
-            aiAgent.close()
-            httpClient.close()
             stopKoin()
             logger.info("Application stopped")
         })
