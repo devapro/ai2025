@@ -4,7 +4,7 @@ import io.github.devapro.ai.mcp.client.McpClient
 import io.github.devapro.ai.mcp.config.McpConfig
 import io.github.devapro.ai.mcp.model.McpTool
 import io.github.devapro.ai.mcp.model.ToolCallResult
-import io.github.devapro.ai.mcp.transport.HttpTransport
+import io.github.devapro.ai.mcp.transport.SseTransport
 import io.github.devapro.ai.mcp.transport.StdioTransport
 import io.ktor.client.*
 import kotlinx.coroutines.async
@@ -70,11 +70,11 @@ class McpManager(
                             )
                         }
                         "http" -> {
-                            HttpTransport(
-                                url = serverConfig.url!!,
-                                headers = serverConfig.headers ?: emptyMap(),
+                            SseTransport(
+                                baseUrl = serverConfig.url!!,
+                               // headers = serverConfig.headers ?: emptyMap(),
                                 httpClient = httpClient,
-                                timeout = serverConfig.timeout ?: 30_000
+                               // timeout = serverConfig.timeout ?: 30_000
                             )
                         }
                         else -> {

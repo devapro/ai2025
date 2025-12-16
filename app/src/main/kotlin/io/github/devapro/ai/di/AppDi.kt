@@ -10,6 +10,7 @@ import io.github.devapro.ai.repository.FileRepository
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.sse.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 import org.koin.core.qualifier.named
@@ -52,6 +53,14 @@ val appModule = module {
     // Shared HTTP client (used by both AiAgent and MCP)
     single {
         HttpClient(CIO) {
+            // CIO engine configuration for SSE support
+            engine {
+                endpoint {
+                    connectTimeout = 10_000  // 10 seconds to establish connection
+                    connectAttempts = 3
+                }
+            }
+
             install(ContentNegotiation) {
                 json(Json {
                     ignoreUnknownKeys = true
@@ -60,8 +69,17 @@ val appModule = module {
                     explicitNulls = false  // Omit null fields (critical for JSON-RPC notifications)
                 })
             }
+
+            // Install SSE plugin for MCP HTTP transport (SDK requirement)
+            install(SSE) {
+                showCommentEvents()
+                showRetryEvents()
+            }
+
             install(io.ktor.client.plugins.HttpTimeout) {
-                requestTimeoutMillis = 520_000
+                requestTimeoutMillis = 520_000  // 520 seconds for long-running requests
+                connectTimeoutMillis = 10_000   // 10 seconds to establish connection
+                socketTimeoutMillis = 520_000   // 520 seconds for socket operations
             }
         }
     }

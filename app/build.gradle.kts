@@ -35,6 +35,9 @@ dependencies {
 
     // Token counting
     implementation(libs.jtokkit)
+
+    // MCP Kotlin SDK
+    implementation(libs.mcpKotlinSdk)
 }
 
 application {
