@@ -147,15 +147,16 @@ class AiAgent(
             logger.info("Total token usage: $tokenUsage")
 
             // Format response with statistics including token usage
+            // Note: Keep formatting simple to avoid Telegram markdown parsing issues
             val formattedResponse = buildString {
                 append(response)
                 append("\n\n---\n\n")
-                append("📊 *Response time:* ${responseTime}ms\n")
-                append("🔢 *Tokens:* ${tokenUsage.totalTokens} (↑${tokenUsage.inputTokens} ↓${tokenUsage.outputTokens})")
+                append("📊 Response time: ${responseTime}ms\n")
+                append("🔢 Tokens: ${tokenUsage.totalTokens} (input: ${tokenUsage.inputTokens}, output: ${tokenUsage.outputTokens})")
 
                 // Add summarization tokens if applicable
                 if (summarizationTokens != null) {
-                    append("\n💾 *Summarization:* ${summarizationTokens.totalTokens} tokens")
+                    append("\n💾 Summarization: ${summarizationTokens.totalTokens} tokens")
                 }
             }
 

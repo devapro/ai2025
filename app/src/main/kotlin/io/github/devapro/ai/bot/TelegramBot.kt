@@ -7,6 +7,7 @@ import com.github.kotlintelegrambot.dispatcher.text
 import com.github.kotlintelegrambot.entities.ChatId
 import com.github.kotlintelegrambot.entities.ParseMode
 import io.github.devapro.ai.agent.AiAgent
+import io.github.devapro.ai.utils.MarkdownUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -108,13 +109,19 @@ class TelegramBot(
                     try {
                         val response = aiAgent.processMessage(chatId, userMessage)
                         logger.info("Sending response to user $chatId")
+                        logger.debug("Response length: ${response.length} characters")
 
-                        // Send with Markdown formatting
+                        // Truncate if needed (Telegram limit is 4096 characters)
+                        val truncatedResponse = MarkdownUtils.truncateIfNeeded(response)
+
+                        // Send as plain text (no markdown) to avoid parsing issues with LLM responses
+                        // LLM responses may contain asterisks, underscores, etc. that break markdown
                         bot.sendMessage(
                             chatId = ChatId.fromId(chatId),
-                            text = response,
-                            parseMode = ParseMode.MARKDOWN
+                            text = truncatedResponse
                         )
+
+                        logger.info("Message sent successfully to user $chatId")
                     } catch (e: Exception) {
                         logger.error("Error processing message: ${e.message}", e)
                         bot.sendMessage(
