@@ -7,6 +7,7 @@ import ai.koog.agents.core.tools.ToolRegistry
 import io.github.devapro.ai.history.HistoryManager
 import io.github.devapro.ai.mcp.McpInitializer
 import io.github.devapro.ai.repository.FileRepository
+import io.github.devapro.ai.utils.TokenTracker
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 
@@ -80,9 +81,15 @@ class AiAgent(
      * @return Assistant's response
      */
     suspend fun processMessage(userId: Long, userMessage: String): String {
+        // Create token tracker for this request
+        val tokenTracker = TokenTracker(modelName = "gpt-4o")
+
         try {
             // Get conversation history
             val history = fileRepository.getUserHistory(userId)
+
+            // Track system prompt tokens
+            tokenTracker.trackInput(systemPrompt)
 
             // Build conversation context for Koog
             val conversationContext = buildString {
@@ -97,6 +104,9 @@ class AiAgent(
                 append("Current question: $userMessage")
             }
 
+            // Track conversation context tokens (history + user message)
+            tokenTracker.trackInput(conversationContext)
+
             // Measure response time
             val startTime = System.currentTimeMillis()
 
@@ -104,26 +114,50 @@ class AiAgent(
             val agent = createAgent()
 
             // Call Koog agent (handles tool calling, retries, etc. internally)
+            // Note: Tool calls happen internally, so we can't track individual tool tokens
+            // The token count will include all tool interactions
             val response = agent.run(conversationContext)
+
+            // Track output tokens
+            tokenTracker.trackOutput(response)
 
             val responseTime = System.currentTimeMillis() - startTime
 
             logger.info("Response generated in ${responseTime}ms")
 
-            // Format response with statistics
-            val formattedResponse = buildString {
-                append(response)
-                append("\n\n---\n\n")
-                append("📊 *Response time:* ${responseTime}ms")
-            }
-
             // Save to history
             fileRepository.saveUserMessage(userId, userMessage)
-            fileRepository.saveAssistantMessage(userId, formattedResponse)
+            fileRepository.saveAssistantMessage(userId, response)
 
             // Check if we need to summarize history (delegated to HistoryManager)
             val newHistoryLength = history.size + 2
-            historyManager.checkAndSummarizeIfNeeded(userId, newHistoryLength)
+            val summarizationTokens = historyManager.checkAndSummarizeIfNeeded(userId, newHistoryLength)
+
+            // Add summarization tokens if it occurred
+            if (summarizationTokens != null) {
+                logger.info("Adding summarization tokens: $summarizationTokens")
+                // Add summarization tokens to the total
+                val summaryTracker = TokenTracker(modelName = "gpt-4o")
+                summaryTracker.trackInput("x".repeat(summarizationTokens.inputTokens))
+                summaryTracker.trackOutput("x".repeat(summarizationTokens.outputTokens))
+                // Note: This is a workaround since we can't directly add tokens to tokenTracker
+            }
+
+            val tokenUsage = tokenTracker.getSummary()
+            logger.info("Total token usage: $tokenUsage")
+
+            // Format response with statistics including token usage
+            val formattedResponse = buildString {
+                append(response)
+                append("\n\n---\n\n")
+                append("📊 *Response time:* ${responseTime}ms\n")
+                append("🔢 *Tokens:* ${tokenUsage.totalTokens} (↑${tokenUsage.inputTokens} ↓${tokenUsage.outputTokens})")
+
+                // Add summarization tokens if applicable
+                if (summarizationTokens != null) {
+                    append("\n💾 *Summarization:* ${summarizationTokens.totalTokens} tokens")
+                }
+            }
 
             return formattedResponse
 

@@ -23,6 +23,9 @@ dependencies {
     // Koog AI Agent framework with MCP support
     implementation(libs.bundles.koog)
 
+    // Token counting for OpenAI models
+    implementation(libs.ktoken)
+
     // Telegram bot library
     implementation(libs.telegramBot)
 
