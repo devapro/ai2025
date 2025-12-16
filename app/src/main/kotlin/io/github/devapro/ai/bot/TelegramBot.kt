@@ -118,7 +118,9 @@ class TelegramBot(
                         // LLM responses may contain asterisks, underscores, etc. that break markdown
                         bot.sendMessage(
                             chatId = ChatId.fromId(chatId),
-                            text = truncatedResponse
+                            text = truncatedResponse,
+                            parseMode = ParseMode.MARKDOWN,
+                            disableWebPagePreview = true
                         )
 
                         logger.info("Message sent successfully to user $chatId")
