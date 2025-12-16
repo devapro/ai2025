@@ -2,6 +2,12 @@ package io.github.devapro.ai.mcp
 
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.mcp.McpToolRegistryProvider
+import io.modelcontextprotocol.kotlin.sdk.Implementation
+import io.modelcontextprotocol.kotlin.sdk.client.Client
+import io.modelcontextprotocol.kotlin.sdk.client.StdioClientTransport
+import kotlinx.io.asSource
+import kotlinx.io.asSink
+import kotlinx.io.buffered
 import org.slf4j.LoggerFactory
 
 /**
@@ -84,30 +90,47 @@ class McpInitializer(
     private suspend fun initializeStdioServer(config: McpServerConfig): ToolRegistry? {
         logger.info("Starting stdio MCP server: ${config.name}")
 
-        val command = listOf(config.command!!) + config.args
-        logger.debug("Command: ${command.joinToString(" ")}")
+        return try {
+            val command = listOf(config.command!!) + config.args
+            logger.debug("Command: ${command.joinToString(" ")}")
 
-        val process = ProcessBuilder(command).start()
+            // Start the MCP server process
+            val process = ProcessBuilder(command).start()
 
-        // TODO: Fix MCP transport API - method signature unclear in Koog 0.5.4
-        // The defaultStdioTransport method doesn't exist or has different signature
-        //
-        // Expected API (from docs):
-        //   val transport = McpToolRegistryProvider.defaultStdioTransport(process)
-        //   return McpToolRegistryProvider.fromTransport(
-        //       transport = transport,
-        //       name = "${config.name}-client",
-        //       version = "1.0.0"
-        //   )
-        //
-        // Alternatives to investigate:
-        // 1. Check actual agents-mcp-jvm API documentation
-        // 2. Use MCP Kotlin SDK directly with StdioClientTransport
-        // 3. Examine Koog example code for MCP integration
+            // Create MCP client
+            val mcpClient = Client(
+                clientInfo = Implementation(
+                    name = "${config.name}-client",
+                    version = "1.0.0"
+                )
+            )
 
-        logger.error("MCP stdio transport not yet implemented - API investigation needed")
-        process.destroy() // Clean up the process
-        return null
+            // Create stdio transport from process streams
+            // This transport communicates with the MCP server via stdin/stdout
+            // Convert Java streams to kotlinx-io Source/Sink for the MCP SDK
+            val transport = StdioClientTransport(
+                input = process.inputStream.asSource().buffered(),
+                output = process.outputStream.asSink().buffered()
+            )
+
+            // Connect the client to the MCP server
+            mcpClient.connect(transport)
+            logger.debug("Connected to MCP server '${config.name}'")
+
+            // Create tool registry from the MCP client
+            // The registry will discover available tools from the MCP server
+            val toolRegistry = McpToolRegistryProvider.fromClient(
+                mcpClient = mcpClient
+            )
+
+            logger.info("Successfully initialized stdio MCP server '${config.name}'")
+            logger.debug("Available tools: ${toolRegistry.tools.map { it.name }}")
+
+            toolRegistry
+        } catch (e: Exception) {
+            logger.error("Failed to initialize stdio MCP server '${config.name}': ${e.message}", e)
+            null
+        }
     }
 
     /**
@@ -116,18 +139,17 @@ class McpInitializer(
     private suspend fun initializeSseServer(config: McpServerConfig): ToolRegistry? {
         logger.info("Connecting to SSE MCP server: ${config.url}")
 
-        // TODO: Fix MCP transport API
-        //
-        // Expected API (from docs):
-        //   val transport = McpToolRegistryProvider.defaultSseTransport(config.url!!)
-        //   return McpToolRegistryProvider.fromTransport(
-        //       transport = transport,
-        //       name = "${config.name}-client",
-        //       version = "1.0.0"
-        //   )
-
-        logger.error("MCP SSE transport not yet implemented - API investigation needed")
-        return null
+        return try {
+            // TODO: Implement SSE transport
+            // SSE transport requires different setup - need to investigate the proper API
+            // For now, SSE is not implemented
+            logger.warn("SSE transport not yet fully implemented for '${config.name}'")
+            logger.info("To implement SSE: create Client, connect with SseClientTransport, use fromClient()")
+            null
+        } catch (e: Exception) {
+            logger.error("Failed to connect to SSE MCP server '${config.name}': ${e.message}", e)
+            null
+        }
     }
 
     /**

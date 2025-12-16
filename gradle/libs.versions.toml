@@ -10,6 +10,9 @@ kotlinxCoroutines = "1.10.2"
 ktor = "3.3.0"
 koog = "0.5.4"
 koogMcp = "0.5.2"
+mcpKotlinSdk = "0.7.0"
+kotlinxIo = "0.8.2"
+okio = "3.9.1"
 telegramBot = "6.3.0"
 dotenv = "6.5.1"
 slf4j = "2.0.16"
@@ -29,6 +32,9 @@ ktorClientContentNegotiation = { module = "io.ktor:ktor-client-content-negotiati
 ktorSerializationKotlinxJson = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 koogAgents = { module = "ai.koog:koog-agents-jvm", version.ref = "koog" }
 koogAgentsMcp = { module = "ai.koog:agents-mcp-jvm", version.ref = "koogMcp" }
+mcpKotlinSdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref = "mcpKotlinSdk" }
+kotlinxIo = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinxIo" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 telegramBot = { module = "io.github.kotlin-telegram-bot.kotlin-telegram-bot:telegram", version.ref = "telegramBot" }
 dotenv = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
 slf4jSimple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
@@ -44,7 +50,7 @@ koinLogger = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin"
 [bundles]
 kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerialization", "kotlinxCoroutines"]
 ktorClient = ["ktorClientCore", "ktorClientCio", "ktorClientContentNegotiation", "ktorSerializationKotlinxJson"]
-koog = ["koogAgents", "koogAgentsMcp"]
+koog = ["koogAgents", "koogAgentsMcp", "mcpKotlinSdk", "kotlinxIo", "okio"]
 exposed = ["exposedCore", "exposedDao", "exposedJdbc"]
 
 [plugins]

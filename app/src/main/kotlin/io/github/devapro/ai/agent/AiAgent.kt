@@ -30,9 +30,9 @@ class AiAgent(
     // Get system prompt once during initialization
     private val systemPrompt = fileRepository.getSystemPrompt()
 
-    // Tool registry and agent - initialized in init block
+    // Tool registry - initialized in init block
+    // Note: Agent is created per message (Koog agents are single-use)
     private val toolRegistry: ToolRegistry?
-    private val agent: AIAgent<String, String>
 
     init {
         logger.info("Initializing AI Agent...")
@@ -43,10 +43,21 @@ class AiAgent(
             mcpInitializer.initialize()
         }
 
-        // Create Koog agent with OpenAI and optional MCP tools
-        // Note: HistoryManager has its own agent for summarization
-        agent = if (toolRegistry != null) {
-            logger.info("Creating AI agent with MCP tools")
+        if (toolRegistry != null) {
+            logger.info("MCP tools initialized successfully")
+        } else {
+            logger.info("No MCP tools available")
+        }
+
+        logger.info("AI Agent initialized successfully")
+    }
+
+    /**
+     * Create a new Koog agent for processing a message
+     * Note: Koog agents are single-use and must be created per request
+     */
+    private fun createAgent(): AIAgent<String, String> {
+        return if (toolRegistry != null) {
             AIAgent(
                 promptExecutor = simpleOpenAIExecutor(apiKey),
                 systemPrompt = systemPrompt,
@@ -54,15 +65,12 @@ class AiAgent(
                 toolRegistry = toolRegistry
             )
         } else {
-            logger.info("Creating AI agent without MCP tools")
             AIAgent(
                 promptExecutor = simpleOpenAIExecutor(apiKey),
                 systemPrompt = systemPrompt,
                 llmModel = OpenAIModels.Chat.GPT4o
             )
         }
-
-        logger.info("AI Agent initialized successfully")
     }
 
     /**
@@ -91,6 +99,9 @@ class AiAgent(
 
             // Measure response time
             val startTime = System.currentTimeMillis()
+
+            // Create a new agent for this message (Koog agents are single-use)
+            val agent = createAgent()
 
             // Call Koog agent (handles tool calling, retries, etc. internally)
             val response = agent.run(conversationContext)
