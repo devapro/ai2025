@@ -32,20 +32,24 @@ class TelegramBot(
                 bot.sendMessage(
                     chatId = chatId,
                     text = """
-                        *Welcome!* I'm your AI assistant.
+                        📅 *Welcome to your AI Calendar Assistant!*
 
-                        I can help you with:
-                        • Answering questions
-                        • Explaining complex topics
-                        • Providing practical advice
-                        • Solving problems
-                        • And much more!
+                        I help you manage your schedule and stay organized using connected calendar systems.
 
-                        Commands:
-                        • Use /clear to clear conversation history
-                        • Use /help to see available commands
+                        *What I can do:*
+                        • 📝 Create and schedule events
+                        • 📋 List your schedule
+                        • 🔍 Search for events
+                        • ✏️ Update and reschedule events
+                        • 🗑️ Delete events
+                        • ⏰ Check your availability
 
-                        Just ask me anything!
+                        *Commands:*
+                        • /summary - Get today's schedule
+                        • /clear - Clear conversation history
+                        • /help - Show available commands
+
+                        Just tell me what you need with your calendar!
                     """.trimIndent(),
                     parseMode = ParseMode.MARKDOWN
                 )
@@ -59,19 +63,25 @@ class TelegramBot(
                     text = """
                         *Available commands:*
 
-                        /start - Start conversation
-                        /help - Show this help message
+                        /start - Show welcome message
+                        /summary - Get today's schedule and events
                         /clear - Clear conversation history
+                        /help - Show this help message
 
                         *What I can do:*
-                        • Answer factual questions
-                        • Explain complex topics
-                        • Provide how-to guides
-                        • Offer recommendations
-                        • Help solve problems
-                        • And much more!
+                        • 📝 Create events: "Schedule a meeting tomorrow at 2pm"
+                        • 📋 List schedule: "What's on my calendar today?"
+                        • 🔍 Search: "Find my meetings with John"
+                        • ✏️ Update: "Move my dentist appointment to Friday"
+                        • 🗑️ Delete: "Cancel the team lunch"
+                        • ⏰ Availability: "When am I free this week?"
 
-                        Just ask me any question!
+                        *Tips:*
+                        • Use natural language for dates and times
+                        • I'll ask for details if needed
+                        • Use /summary for a quick daily overview
+
+                        Just tell me what you need!
                     """.trimIndent(),
                     parseMode = ParseMode.MARKDOWN
                 )
@@ -86,6 +96,39 @@ class TelegramBot(
                     text = "✅ *Conversation history cleared!*",
                     parseMode = ParseMode.MARKDOWN
                 )
+            }
+
+            // Handle /summary command
+            command("summary") {
+                val chatId = message.chat.id
+                logger.info("Summary command received from user $chatId")
+
+                // Send typing indicator
+                bot.sendChatAction(ChatId.fromId(chatId), com.github.kotlintelegrambot.entities.ChatAction.TYPING)
+
+                // Process summary request with AI agent in coroutine
+                coroutineScope.launch {
+                    try {
+                        val response = aiAgent.processMessage(
+                            chatId,
+                            "Please provide a summary of all events and tasks scheduled for today. Include time, title, location, and any important details."
+                        )
+                        logger.info("Sending summary response to user $chatId")
+
+                        // Send with Markdown formatting
+                        bot.sendMessage(
+                            chatId = ChatId.fromId(chatId),
+                            text = response,
+                            parseMode = ParseMode.MARKDOWN
+                        )
+                    } catch (e: Exception) {
+                        logger.error("Error processing summary command: ${e.message}", e)
+                        bot.sendMessage(
+                            chatId = ChatId.fromId(chatId),
+                            text = "Sorry, I encountered an error getting your schedule summary. Please try again."
+                        )
+                    }
+                }
             }
 
             // Handle regular text messages

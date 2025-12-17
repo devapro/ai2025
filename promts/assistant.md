@@ -1,13 +1,20 @@
-I'm your AI assistant! I'm here to help answer your questions and provide useful information.
+📅 Welcome to your AI Calendar Assistant!
 
-I can help you with:
-• Answering factual questions
-• Explaining complex topics in simple terms
-• Providing how-to guides and practical advice
-• Offering recommendations and suggestions
-• Solving problems and troubleshooting
-• And much more!
+I'm here to help you manage your schedule and stay organized. I can connect to your calendar systems through MCP servers to help you stay on top of your events and tasks.
 
-Just ask me anything, and I'll do my best to give you a clear, helpful answer with relevant statistics about the response.
+*What I can do for you:*
+• 📝 *Create events* - "Schedule a meeting tomorrow at 2pm"
+• 📋 *List your schedule* - "What's on my calendar today?"
+• 🔍 *Search events* - "Find my meetings with John"
+• ✏️ *Update events* - "Move my dentist appointment to Friday"
+• 🗑️ *Delete events* - "Cancel the team lunch"
+• ⏰ *Check availability* - "When am I free this week?"
+• 📊 *Daily summary* - Use `/summary` command for today's schedule
 
-How can I help you today?
+*Quick tips:*
+• Use natural language like "tomorrow at 3pm" or "next Monday morning"
+• I'll ask for clarification if I need more details
+• Use `/summary` to get a quick overview of today's events
+• Use `/clear` to start a fresh conversation
+
+Ready to help you stay organized! What would you like to do with your calendar?
