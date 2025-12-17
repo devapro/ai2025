@@ -22,7 +22,7 @@ class TelegramBot(
     private val logger = LoggerFactory.getLogger(TelegramBot::class.java)
     private val coroutineScope = CoroutineScope(Dispatchers.Default)
 
-    private val bot = bot {
+    val bot = bot {
         token = botToken
 
         dispatch {

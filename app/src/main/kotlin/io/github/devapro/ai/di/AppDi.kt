@@ -7,6 +7,7 @@ import io.github.devapro.ai.bot.TelegramBot
 import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.mcp.config.McpConfigLoader
 import io.github.devapro.ai.repository.FileRepository
+import io.github.devapro.ai.scheduler.DailySummaryScheduler
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -48,6 +49,18 @@ val appModule = module {
 
     single(qualifier = named("mcpConfigPath")) {
         get<Dotenv>()["MCP_CONFIG_PATH"] ?: "mcp-config.json"
+    }
+
+    single(qualifier = named("usersFilePath")) {
+        get<Dotenv>()["USERS_FILE_PATH"] ?: "users.md"
+    }
+
+    single(qualifier = named("dailySummaryHour")) {
+        get<Dotenv>()["DAILY_SUMMARY_HOUR"]?.toIntOrNull() ?: 10
+    }
+
+    single(qualifier = named("dailySummaryMinute")) {
+        get<Dotenv>()["DAILY_SUMMARY_MINUTE"]?.toIntOrNull() ?: 0
     }
 
     // Shared HTTP client (used by both AiAgent and MCP)
@@ -109,7 +122,8 @@ val appModule = module {
     single {
         FileRepository(
             promptsDir = get(qualifier = named("promptsDir")),
-            historyDir = get(qualifier = named("historyDir"))
+            historyDir = get(qualifier = named("historyDir")),
+            usersFilePath = get(qualifier = named("usersFilePath"))
         )
     }
 
@@ -128,6 +142,17 @@ val appModule = module {
         TelegramBot(
             botToken = get(qualifier = named("telegramBotToken")),
             aiAgent = get()
+        )
+    }
+
+    // Scheduler layer
+    single {
+        DailySummaryScheduler(
+            aiAgent = get(),
+            fileRepository = get(),
+            bot = get<TelegramBot>().bot,
+            targetHour = get(qualifier = named("dailySummaryHour")),
+            targetMinute = get(qualifier = named("dailySummaryMinute"))
         )
     }
 }

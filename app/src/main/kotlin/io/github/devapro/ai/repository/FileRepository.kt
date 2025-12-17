@@ -13,7 +13,8 @@ import java.time.LocalDateTime
  */
 class FileRepository(
     private val promptsDir: String = "promts",
-    private val historyDir: String = "history"
+    private val historyDir: String = "history",
+    private val usersFilePath: String = "users.md"
 ) {
     private val json = Json {
         prettyPrint = true
@@ -138,6 +139,32 @@ class FileRepository(
         val historyFile = File(historyDir, "user_${userId}.json")
         if (historyFile.exists()) {
             historyFile.delete()
+        }
+    }
+
+    /**
+     * Get list of all user IDs from users.md file
+     * @return List of user IDs (Telegram chat IDs)
+     */
+    fun getAllUserIds(): List<Long> {
+        val usersFile = File(usersFilePath)
+        if (!usersFile.exists()) {
+            return emptyList()
+        }
+
+        return try {
+            usersFile.readLines()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() && !it.startsWith("#") } // Ignore comments and empty lines
+                .mapNotNull { line ->
+                    try {
+                        line.toLong()
+                    } catch (e: NumberFormatException) {
+                        null // Ignore invalid lines
+                    }
+                }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }
