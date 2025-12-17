@@ -93,9 +93,10 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
   - Injected as singleton via Koin with dependencies: apiKey, FileRepository, McpManager, HttpClient
 - `mcp/` - Model Context Protocol integration
   - `model/McpModels.kt` - JSON-RPC and MCP protocol data structures
-  - `transport/McpTransport.kt` - Transport interface for stdio and HTTP
-  - `transport/StdioTransport.kt` - Local process transport (npx, python scripts)
-  - `transport/HttpTransport.kt` - Remote HTTP server transport
+  - `transport/McpTransport.kt` - Transport interface for all communication protocols
+  - `transport/StdioTransport.kt` - Local process transport via stdin/stdout (npx, python scripts)
+  - `transport/SseTransport.kt` - **[ACTIVE]** Server-Sent Events transport (GET /sse + POST /message)
+  - `transport/HttpTransport.kt` - Official MCP Kotlin SDK transport (single POST endpoint)
   - `client/McpClient.kt` - Single server client with tool caching and execution
   - `config/McpConfig.kt` - Configuration data classes
   - `config/McpConfigLoader.kt` - JSON config file loader
@@ -144,9 +145,15 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
   - Long polling for receiving messages
   - Command handling (/start, /help, /clear)
   - Chat actions (typing indicator)
-- Ktor 3.3.0 - HTTP client (used by Koog)
+- Ktor 3.3.0 - HTTP client
   - CIO engine for async I/O
   - Content negotiation for JSON
+  - SSE plugin for Server-Sent Events support
+- MCP Kotlin SDK 0.8.1 - Official Model Context Protocol implementation
+  - io.modelcontextprotocol:kotlin-sdk
+  - StreamableHttpClientTransport for HTTP-based MCP servers
+  - Session management and resumption tokens
+  - Multiple response modes (JSON, SSE inline, SSE separate)
 
 **Dependency Injection:**
 - Koin 4.0.0 - Lightweight dependency injection framework
@@ -170,6 +177,8 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
 ## Recent Development History
 
 Based on git commit history, recent features include:
+- **MCP SSE Integration** (latest): Server-Sent Events transport for HTTP-based MCP servers
+- **MCP Kotlin SDK Integration**: Official SDK v0.8.1 with HttpTransport implementation (alternative to SSE)
 - **Message history in JSON**: Enhanced conversation history storage format
 - **History compacting**: Automatic conversation history management to prevent context overflow
 - **Message count tracking**: Monitor conversation length and message counts
@@ -190,10 +199,19 @@ The Model Context Protocol (MCP) integration enables the AI agent to use externa
 ### Component Layers
 
 **1. Transport Layer** (`mcp/transport/`):
-- Abstraction for different communication protocols
-- **StdioTransport**: Launches external processes, communicates via stdin/stdout with newline-delimited JSON-RPC
-- **HttpTransport**: Sends JSON-RPC requests to remote HTTP servers
-- Timeout handling (default: 30s), error recovery, graceful failure
+- Abstraction for different communication protocols via `McpTransport` interface
+- **StdioTransport**: Launches external processes (npx, python), communicates via stdin/stdout with newline-delimited JSON-RPC
+- **SseTransport** **[Currently Active]**: Server-Sent Events based transport
+  - Uses two endpoints: GET /sse (for receiving) + POST /message (for sending)
+  - Message endpoint discovered dynamically from SSE stream
+  - Async connection management with request/response correlation
+  - 10-second initialization timeout
+- **HttpTransport**: Official MCP Kotlin SDK implementation
+  - Uses `StreamableHttpClientTransport` from `io.modelcontextprotocol.kotlin.sdk`
+  - Single POST endpoint for all operations
+  - Supports session management, resumption tokens, multiple response modes
+  - Currently implemented but not active (SseTransport is used for HTTP servers)
+- Timeout handling (default: 30s), error recovery, graceful failure for all transports
 
 **2. Client Layer** (`mcp/client/`):
 - **McpClient**: Manages single server connection
@@ -275,13 +293,18 @@ Example:
       "name": "api",
       "enabled": true,
       "type": "http",
-      "url": "https://api.example.com/mcp",
+      "url": "http://localhost:8080/sse",
       "headers": {"Authorization": "Bearer token"},
       "timeout": 15000
     }
   ]
 }
 ```
+
+**Note**: HTTP servers currently use `SseTransport` which requires:
+- GET endpoint for SSE stream (receives messages from server)
+- POST endpoint for sending messages (discovered via SSE "endpoint" event)
+- Both endpoints typically share the same base URL (e.g., `/sse`)
 
 ### Error Handling
 
@@ -468,6 +491,9 @@ response content
 - `IMPLEMENTATION_SUMMARY.md` - Summary of implementation decisions and architecture
 - `MARKDOWN_IMPLEMENTATION.md` - Details about markdown formatting implementation
 - `PLANNING_AGENT.md` - Planning and agent architecture documentation
+- `HTTP_TRANSPORT_SDK_IMPLEMENTATION.md` - MCP Kotlin SDK HttpTransport implementation details
+- `HTTP_TRANSPORT_TROUBLESHOOTING.md` - Troubleshooting guide for HTTP transport issues
+- `KOTLIN_SDK_RESEARCH.md` - Research notes on MCP Kotlin SDK integration
 - `results.md` - AI model benchmarking results and performance data
 
 ## Dependency Injection (Koin)
