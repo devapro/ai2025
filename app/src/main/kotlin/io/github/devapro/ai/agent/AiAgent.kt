@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory
  */
 
 private const val modelName = "gpt-4o-mini"
-private const val MAX_TOOL_ITERATIONS = 5
+private const val MAX_TOOL_ITERATIONS = 20
 
 class AiAgent(
     private val apiKey: String,

@@ -68,7 +68,7 @@ fun main() {
         telegramBot.start()
 
         // Start the daily summary scheduler
-        dailySummaryScheduler.start()
+   //     dailySummaryScheduler.start()
 
         // For testing
 //        runBlocking {
