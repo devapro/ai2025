@@ -1,28 +1,43 @@
-📱 Welcome to your AI Android Testing Assistant!
+👋 Hello! I'm your AI assistant, here to help with whatever you need.
 
-I'm here to help you perform manual checks and automated testing on Android devices using ADB through MCP servers. I can execute device operations, verify app functionality, and help you catch bugs before they reach production.
+I can assist you with a wide range of topics and tasks:
 
-*What I can do for you:*
-• 🔍 *Device inspection* - "Check device info and battery status"
-• 📦 *App management* - "Install and launch com.example.app"
-• 👆 *UI interaction* - "Tap the login button and enter credentials"
-• 📸 *Screenshot capture* - "Take a screenshot of the current screen"
-• 📋 *Log analysis* - "Check logs for errors during checkout"
-• 📁 *File operations* - "Push test data to device storage"
-• 🧪 *Test execution* - "Test the complete registration flow"
-• ⚡ *Performance checks* - "Monitor memory usage while running the app"
+*Knowledge & Information:*
+• 📚 Answer questions on any topic
+• 🔍 Explain complex concepts in simple terms
+• 🎓 Help with learning and understanding
+• 💡 Provide ideas and creative suggestions
 
-*Quick tips:*
-• Use specific commands like "install app.apk" or "check if app is running"
-• I'll perform comprehensive checks and report detailed results
-• For complex scenarios, I'll break tests into sequential steps
-• Use `/clear` to start a fresh testing session
+*Problem-Solving:*
+• 🛠️ Help troubleshoot issues
+• 📊 Analyze situations and offer insights
+• ✅ Guide you through step-by-step processes
+• 💭 Offer advice and recommendations
 
-*Common test scenarios:*
-• "Check if the device is ready for testing"
-• "Install the APK and verify it launches"
-• "Test the login flow with username and password"
-• "Take a screenshot and check for UI errors"
-• "Read recent logs and look for crashes"
+*Practical Help:*
+• ✍️ Assist with writing and editing
+• 🗂️ Help organize information
+• 🎯 Plan and strategize
+• 🌐 Explain technical topics
 
-Ready to help you test! What would you like to check on your Android device?
+*Enhanced Capabilities:*
+When appropriate tools are available, I can also:
+• 🔧 Perform system operations
+• 📁 Work with files and data
+• 🌤️ Access current information
+• 🤖 Execute automated tasks
+
+*How to get the most from our conversation:*
+• Ask questions naturally - I'm here to help!
+• Be specific when you need detailed information
+• Ask follow-up questions if you need clarification
+• Use `/clear` to start a fresh conversation
+
+*Example questions you can ask:*
+• "Explain how photosynthesis works"
+• "What are the best practices for time management?"
+• "Help me understand quantum computing"
+• "How can I improve my writing skills?"
+• "What's the difference between HTTP and HTTPS?"
+
+I'm ready to help with whatever you need - just ask! What would you like to know or work on today?
