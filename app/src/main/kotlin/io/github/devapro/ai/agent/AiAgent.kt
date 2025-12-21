@@ -25,23 +25,21 @@ import org.slf4j.LoggerFactory
 
 private const val modelName = "gpt-4o-mini"
 private const val MAX_TOOL_ITERATIONS = 20
+private const val MAX_MESSAGES_IN_CONTEXT = 10
 
 class AiAgent(
     private val apiKey: String,
     private val fileRepository: FileRepository,
     private val mcpManager: McpManager,
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
+    private val conversationSummarizer: AiAgentConversationSummarizer,
+    private val responseFormatter: AiAgentResponseFormatter
 ) {
     private val logger = LoggerFactory.getLogger(AiAgent::class.java)
 
     // Token counting with jtokkit
-    private val encodingRegistry: EncodingRegistry = Encodings.newDefaultEncodingRegistry()
-    private val encoding: Encoding = encodingRegistry.getEncoding(EncodingType.O200K_BASE)
-
-    private val jsonParser = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-    }
+    private val encodingRegistry = Encodings.newDefaultEncodingRegistry()
+    private val encoding = encodingRegistry.getEncoding(EncodingType.O200K_BASE)
 
     /**
      * Process user message and generate response with MCP tool support
@@ -70,27 +68,7 @@ class AiAgent(
         messages.add(OpenAIMessage(role = "user", content = userMessage))
 
         // Get available tools from MCP manager
-        val availableTools = if (mcpManager.isAvailable()) {
-            try {
-                val mcpTools = mcpManager.getAllTools()
-                logger.info("Found ${mcpTools.size} MCP tools available")
-                mcpTools.map { mcpTool ->
-                    OpenAITool(
-                        function = OpenAIFunction(
-                            name = mcpTool.name,
-                            description = mcpTool.description,
-                            parameters = mcpTool.inputSchema
-                        )
-                    )
-                }
-            } catch (e: Exception) {
-                logger.error("Error fetching MCP tools: ${e.message}", e)
-                emptyList()
-            }
-        } else {
-            logger.debug("No MCP tools available")
-            emptyList()
-        }
+        val availableTools = getAvailableTools()
 
         // Measure total response time
         val startTime = System.currentTimeMillis()
@@ -206,7 +184,7 @@ class AiAgent(
 
                     // Parse and format response
                     val formattedResponse = try {
-                        parseAndFormatResponse(rawResponse, usage, responseTime, estimatedTokens, historyLength)
+                        responseFormatter.parseAndFormatResponse(rawResponse, usage, responseTime, estimatedTokens, historyLength)
                     } catch (e: Exception) {
                         logger.warn("Failed to parse AI response as JSON, using raw response: ${e.message}")
                         rawResponse
@@ -218,9 +196,9 @@ class AiAgent(
 
                     // Check if we need to summarize history (every 5 messages)
                     val newHistoryLength = historyLength + 2
-                    if (newHistoryLength >= 5 && newHistoryLength % 5 == 0) {
+                    if (newHistoryLength >= MAX_MESSAGES_IN_CONTEXT && newHistoryLength % MAX_MESSAGES_IN_CONTEXT == 0) {
                         logger.info("History length reached $newHistoryLength, creating summary...")
-                        summarizeAndReplaceHistory(userId)
+                        conversationSummarizer.summarizeAndReplaceHistory(userId)
                     }
 
                     return formattedResponse
@@ -254,71 +232,6 @@ class AiAgent(
     }
 
     /**
-     * Summarize conversation history and replace it with the summary
-     */
-    private suspend fun summarizeAndReplaceHistory(userId: Long) {
-        try {
-            // Get current history
-            val history = fileRepository.getUserHistory(userId)
-            if (history.isEmpty()) return
-
-            // Build conversation text for summarization
-            val conversationText = buildString {
-                history.forEach { msg ->
-                    append("${msg.role.uppercase()}: ${msg.content}\n\n")
-                }
-            }
-
-            // Create summarization request
-            val summaryPrompt = """
-                Please create a concise summary of the following conversation.
-                Focus on key topics discussed, important information exchanged, and any decisions or conclusions reached.
-                Keep the summary brief but informative.
-
-                Conversation:
-                $conversationText
-
-                Provide the summary in plain text format (not JSON).
-            """.trimIndent()
-
-            val summaryMessages = listOf(
-                OpenAIMessage(role = "user", content = summaryPrompt)
-            )
-
-            val summaryRequest = OpenAIRequest(
-                model = modelName,
-                messages = summaryMessages,
-                temperature = 0.7,
-                stream = false
-            )
-
-            // Call API to get summary
-            val response = httpClient.post("https://api.openai.com/v1/chat/completions") {
-                header("Authorization", "Bearer $apiKey")
-                contentType(ContentType.Application.Json)
-                setBody(summaryRequest)
-            }.body<OpenAIResponse>()
-
-            val summary = response.choices.firstOrNull()?.message?.content?.trim()
-
-            if (!summary.isNullOrBlank()) {
-                logger.info("Summary created successfully, replacing history")
-
-                // Clear current history
-                fileRepository.clearUserHistory(userId)
-
-                // Save summary as a system message
-                fileRepository.saveSystemMessage(userId, "Conversation summary: $summary")
-
-                logger.info("History replaced with summary")
-            }
-        } catch (e: Exception) {
-            logger.error("Failed to summarize history: ${e.message}", e)
-            // Continue without summarization on error
-        }
-    }
-
-    /**
      * Count tokens in messages before sending request
      * Uses jtokkit to estimate token count
      */
@@ -344,74 +257,30 @@ class AiAgent(
     }
 
     /**
-     * Parse JSON response from AI and format it for display
+     * Get available tools from MCP manager and convert to OpenAI format
      */
-    private fun parseAndFormatResponse(
-        rawResponse: String,
-        usage: TokenUsage?,
-        responseTime: Long,
-        estimatedTokes: Int,
-        historyLength: Int
-    ): String {
-        // Try to extract JSON from potential markdown code block
-        val jsonContent = if (rawResponse.contains("```json")) {
-            rawResponse
-                .substringAfter("```json")
-                .substringBefore("```")
-                .trim()
-        } else if (rawResponse.contains("```")) {
-            rawResponse
-                .substringAfter("```")
-                .substringBefore("```")
-                .trim()
+    private suspend fun getAvailableTools(): List<OpenAITool> {
+        return if (mcpManager.isAvailable()) {
+            try {
+                val mcpTools = mcpManager.getAllTools()
+                logger.info("Found ${mcpTools.size} MCP tools available")
+                mcpTools.map { mcpTool ->
+                    OpenAITool(
+                        function = OpenAIFunction(
+                            name = mcpTool.name,
+                            description = mcpTool.description,
+                            parameters = mcpTool.inputSchema
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                logger.error("Error fetching MCP tools: ${e.message}", e)
+                emptyList()
+            }
         } else {
-            rawResponse.trim()
+            logger.debug("No MCP tools available")
+            emptyList()
         }
-
-        // Parse the JSON
-        val aiResponse = jsonParser.decodeFromString<AiResponse>(jsonContent)
-
-        // Handle empty response
-        if (aiResponse.text.isNullOrBlank()) {
-            return "I'm here to help! Please ask me a question and I'll do my best to provide a helpful answer."
-        }
-
-        // Format the response
-        return formatResponse(aiResponse, usage, responseTime, estimatedTokes, historyLength)
-    }
-
-    /**
-     * Format AI response with statistics
-     */
-    private fun formatResponse(
-        aiResponse: AiResponse,
-        usage: TokenUsage?,
-        responseTime: Long,
-        estimatedTokes: Int,
-        historyLength: Int
-    ): String {
-        return buildString {
-            // Main answer text
-            append(aiResponse.text ?: "")
-            append("\n\n")
-
-            // Summary if present
-            if (!aiResponse.summary.isNullOrBlank()) {
-                append("💡 _${aiResponse.summary}_\n\n")
-            }
-
-            // Statistics separator
-            append("---\n\n")
-
-            // Statistics
-            append("📊 *${modelName}:*\n")
-            append("• Response time: ${responseTime}ms\n")
-            append("• History messages: ${historyLength}\n")
-            if (usage != null) {
-                append("• Estimated incoming tokes: ${estimatedTokes}\n")
-                append("• Tokens used: ${usage.totalTokens} (prompt: ${usage.promptTokens}, completion: ${usage.completionTokens})")
-            }
-        }.trim()
     }
 
     fun close() {
@@ -419,120 +288,3 @@ class AiAgent(
         // Don't close it here
     }
 }
-
-/**
- * AI response structure from JSON
- */
-@Serializable
-data class AiResponse(
-    @SerialName("type")
-    val type: String? = "answer",
-    @SerialName("text")
-    val text: String? = null,
-    @SerialName("summary")
-    val summary: String? = null
-)
-
-@Serializable
-data class OpenAIMessage(
-    @SerialName("role")
-    val role: String,
-    @SerialName("content")
-    val content: String? = null,  // Nullable for tool call messages
-    @SerialName("tool_calls")
-    val toolCalls: List<OpenAIToolCall>? = null,
-    @SerialName("tool_call_id")
-    val toolCallId: String? = null
-)
-
-@Serializable
-data class OpenAIRequest(
-    @SerialName("model")
-    val model: String,
-    @SerialName("messages")
-    val messages: List<OpenAIMessage>,
-    @SerialName("temperature")
-    val temperature: Double,
-    @SerialName("max_tokens")
-    val maxTokens: Int? = null,
-    @SerialName("top_p")
-    val topP: Double? = null,
-    @SerialName("response_format")
-    val responseFormat: ResponseFormat? = null,
-    @SerialName("stream")
-    val stream: Boolean = false,
-    @SerialName("tools")
-    val tools: List<OpenAITool>? = null,
-    @SerialName("tool_choice")
-    val toolChoice: String? = null
-)
-
-@Serializable
-data class ResponseFormat(
-    @SerialName("type")
-    val type: String  // "json_object" or "text"
-)
-
-@Serializable
-data class OpenAIResponse(
-    @SerialName("choices")
-    val choices: List<OpenAIChoice>,
-    @SerialName("usage")
-    val usage: TokenUsage? = null
-)
-
-@Serializable
-data class OpenAIChoice(
-    @SerialName("message")
-    val message: OpenAIMessage,
-    @SerialName("finish_reason")
-    val finishReason: String? = null
-)
-
-// OpenAI Function Calling Data Structures
-
-@Serializable
-data class OpenAITool(
-    @SerialName("type")
-    val type: String = "function",
-    @SerialName("function")
-    val function: OpenAIFunction
-)
-
-@Serializable
-data class OpenAIFunction(
-    @SerialName("name")
-    val name: String,
-    @SerialName("description")
-    val description: String? = null,
-    @SerialName("parameters")
-    val parameters: JsonObject
-)
-
-@Serializable
-data class OpenAIToolCall(
-    @SerialName("id")
-    val id: String,
-    @SerialName("type")
-    val type: String = "function",
-    @SerialName("function")
-    val function: OpenAIFunctionCall
-)
-
-@Serializable
-data class OpenAIFunctionCall(
-    @SerialName("name")
-    val name: String,
-    @SerialName("arguments")
-    val arguments: String  // JSON string
-)
-
-@Serializable
-data class TokenUsage(
-    @SerialName("prompt_tokens")
-    val promptTokens: Int,
-    @SerialName("completion_tokens")
-    val completionTokens: Int,
-    @SerialName("total_tokens")
-    val totalTokens: Int
-)

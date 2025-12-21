@@ -1,11 +1,9 @@
 package io.github.devapro.ai
 
-import io.github.devapro.ai.agent.AiAgent
 import io.github.devapro.ai.bot.TelegramBot
 import io.github.devapro.ai.di.allModules
 import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.scheduler.DailySummaryScheduler
-import io.ktor.client.*
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -32,9 +30,8 @@ fun main() {
 
         val mcpManager = koin.get<McpManager>()
         val telegramBot = koin.get<TelegramBot>()
-        val aiAgent = koin.get<AiAgent>()
-        val httpClient = koin.get<HttpClient>()
         val dailySummaryScheduler = koin.get<DailySummaryScheduler>()
+        val shutdownManager = koin.get<AppShutDownManager>()
 
         logger.info("All components initialized via DI")
 
@@ -50,19 +47,8 @@ fun main() {
             logger.info("No MCP servers available - running without tools")
         }
 
-        // Add shutdown hook
-        Runtime.getRuntime().addShutdownHook(Thread {
-            logger.info("Shutting down...")
-            dailySummaryScheduler.stop()
-            runBlocking {
-                mcpManager.close()
-            }
-            telegramBot.stop()
-            aiAgent.close()
-            httpClient.close()
-            stopKoin()
-            logger.info("Application stopped")
-        })
+        // Register shutdown hook
+        shutdownManager.registerShutdownHook()
 
         // Start the bot
         telegramBot.start()

@@ -2,7 +2,10 @@ package io.github.devapro.ai.di
 
 import io.github.cdimascio.dotenv.Dotenv
 import io.github.cdimascio.dotenv.dotenv
+import io.github.devapro.ai.AppShutDownManager
 import io.github.devapro.ai.agent.AiAgent
+import io.github.devapro.ai.agent.AiAgentConversationSummarizer
+import io.github.devapro.ai.agent.AiAgentResponseFormatter
 import io.github.devapro.ai.bot.TelegramBot
 import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.mcp.config.McpConfigLoader
@@ -127,13 +130,29 @@ val appModule = module {
         )
     }
 
+    // Conversation summarizer component
+    single {
+        AiAgentConversationSummarizer(
+            apiKey = get(qualifier = named("openAiApiKey")),
+            fileRepository = get(),
+            httpClient = get()
+        )
+    }
+
+    // Response formatter component
+    single {
+        AiAgentResponseFormatter()
+    }
+
     // Agent layer (now with MCP support)
     single {
         AiAgent(
             apiKey = get(qualifier = named("openAiApiKey")),
             fileRepository = get(),
             mcpManager = get(),
-            httpClient = get()
+            httpClient = get(),
+            conversationSummarizer = get(),
+            responseFormatter = get()
         )
     }
 
@@ -153,6 +172,17 @@ val appModule = module {
             bot = get<TelegramBot>().bot,
             targetHour = get(qualifier = named("dailySummaryHour")),
             targetMinute = get(qualifier = named("dailySummaryMinute"))
+        )
+    }
+
+    // Shutdown manager
+    single {
+        AppShutDownManager(
+            dailySummaryScheduler = get(),
+            mcpManager = get(),
+            telegramBot = get(),
+            aiAgent = get(),
+            httpClient = get()
         )
     }
 }
