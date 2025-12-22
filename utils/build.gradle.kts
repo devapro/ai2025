@@ -31,3 +31,8 @@ dependencies {
 application {
     mainClass.set("io.github.devapro.ai.utils.UtilAppKt")
 }
+
+tasks.named<JavaExec>("run") {
+    // Set working directory to project root so dotenv can find .env file
+    workingDir = rootProject.projectDir
+}
