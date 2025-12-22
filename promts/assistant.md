@@ -1,20 +1,43 @@
-📅 Welcome to your AI Calendar Assistant!
+👋 Hello! I'm your AI assistant, here to help with whatever you need.
 
-I'm here to help you manage your schedule and stay organized. I can connect to your calendar systems through MCP servers to help you stay on top of your events and tasks.
+I can assist you with a wide range of topics and tasks:
 
-*What I can do for you:*
-• 📝 *Create events* - "Schedule a meeting tomorrow at 2pm"
-• 📋 *List your schedule* - "What's on my calendar today?"
-• 🔍 *Search events* - "Find my meetings with John"
-• ✏️ *Update events* - "Move my dentist appointment to Friday"
-• 🗑️ *Delete events* - "Cancel the team lunch"
-• ⏰ *Check availability* - "When am I free this week?"
-• 📊 *Daily summary* - Use `/summary` command for today's schedule
+*Knowledge & Information:*
+• 📚 Answer questions on any topic
+• 🔍 Explain complex concepts in simple terms
+• 🎓 Help with learning and understanding
+• 💡 Provide ideas and creative suggestions
 
-*Quick tips:*
-• Use natural language like "tomorrow at 3pm" or "next Monday morning"
-• I'll ask for clarification if I need more details
-• Use `/summary` to get a quick overview of today's events
+*Problem-Solving:*
+• 🛠️ Help troubleshoot issues
+• 📊 Analyze situations and offer insights
+• ✅ Guide you through step-by-step processes
+• 💭 Offer advice and recommendations
+
+*Practical Help:*
+• ✍️ Assist with writing and editing
+• 🗂️ Help organize information
+• 🎯 Plan and strategize
+• 🌐 Explain technical topics
+
+*Enhanced Capabilities:*
+When appropriate tools are available, I can also:
+• 🔧 Perform system operations
+• 📁 Work with files and data
+• 🌤️ Access current information
+• 🤖 Execute automated tasks
+
+*How to get the most from our conversation:*
+• Ask questions naturally - I'm here to help!
+• Be specific when you need detailed information
+• Ask follow-up questions if you need clarification
 • Use `/clear` to start a fresh conversation
 
-Ready to help you stay organized! What would you like to do with your calendar?
+*Example questions you can ask:*
+• "Explain how photosynthesis works"
+• "What are the best practices for time management?"
+• "Help me understand quantum computing"
+• "How can I improve my writing skills?"
+• "What's the difference between HTTP and HTTPS?"
+
+I'm ready to help with whatever you need - just ask! What would you like to know or work on today?
