@@ -15,13 +15,16 @@ data class TextChunk(
 
 /**
  * Component responsible for splitting text into chunks with overlap
- * Implements best practices for RAG text chunking
+ * Implements best practices for RAG text chunking with sentence-first strategy
  */
 class TextChunker(
-    private val chunkSize: Int = 500,  // characters per chunk
+    private val chunkSize: Int = 500,  // target characters per chunk
     private val chunkOverlap: Int = 100  // overlap between chunks
 ) {
     private val logger = LoggerFactory.getLogger(TextChunker::class.java)
+
+    // Sentence ending patterns (includes common abbreviations to avoid)
+    private val sentenceEndingPattern = Regex("""[.!?]+(?=\s+[A-Z]|$)""")
 
     init {
         require(chunkSize > 0) { "Chunk size must be positive" }
@@ -30,7 +33,7 @@ class TextChunker(
     }
 
     /**
-     * Split text into chunks with overlap
+     * Split text into chunks with overlap using sentence-first strategy
      * @param text The text to split
      * @param metadata Optional metadata to attach to all chunks
      * @return List of text chunks
@@ -43,78 +46,270 @@ class TextChunker(
 
         // Clean the text
         val cleanedText = cleanText(text)
-        logger.info("Chunking text of length ${cleanedText.length} into chunks of size $chunkSize with overlap $chunkOverlap")
+        logger.info("Chunking text of length ${cleanedText.length} into chunks of ~$chunkSize characters (sentence-based)")
 
-        val chunks = mutableListOf<TextChunk>()
-        var startPosition = 0
-        var chunkIndex = 0
+        // Split text into sentences
+        val sentences = splitIntoSentences(cleanedText)
+        logger.debug("Split text into ${sentences.size} sentences")
 
-        while (startPosition < cleanedText.length) {
-            // Calculate end position
-            val endPosition = minOf(startPosition + chunkSize, cleanedText.length)
+        // Group sentences into chunks
+        val chunks = createChunksFromSentences(sentences, metadata)
 
-            // Extract chunk text
-            var chunkText = cleanedText.substring(startPosition, endPosition)
-
-            // Try to end at sentence boundary if not the last chunk
-            if (endPosition < cleanedText.length) {
-                chunkText = trimToSentenceBoundary(chunkText)
-            }
-
-            // Create chunk
-            chunks.add(
-                TextChunk(
-                    text = chunkText.trim(),
-                    index = chunkIndex,
-                    startPosition = startPosition,
-                    endPosition = startPosition + chunkText.length,
-                    metadata = metadata
-                )
-            )
-
-            // Move to next position with overlap
-            startPosition += chunkText.length - chunkOverlap
-            chunkIndex++
-
-            // Prevent infinite loop if chunk is too small
-            if (chunkText.length < chunkOverlap) {
-                break
-            }
-        }
-
-        logger.info("Created ${chunks.size} chunks from text")
+        logger.info("Created ${chunks.size} chunks from text (sentence-based chunking)")
         return chunks
     }
 
     /**
-     * Clean text by normalizing whitespace and removing special characters
+     * Split text into sentences using regex pattern
+     * Handles common sentence endings: . ! ?
+     */
+    private fun splitIntoSentences(text: String): List<String> {
+        val sentences = mutableListOf<String>()
+        var lastEnd = 0
+
+        sentenceEndingPattern.findAll(text).forEach { match ->
+            val sentenceEnd = match.range.last + 1
+            val sentence = text.substring(lastEnd, sentenceEnd).trim()
+            if (sentence.isNotEmpty()) {
+                sentences.add(sentence)
+            }
+            lastEnd = sentenceEnd
+        }
+
+        // Add remaining text as last sentence if any
+        if (lastEnd < text.length) {
+            val remaining = text.substring(lastEnd).trim()
+            if (remaining.isNotEmpty()) {
+                sentences.add(remaining)
+            }
+        }
+
+        // If no sentences were found (no sentence endings), treat entire text as one sentence
+        if (sentences.isEmpty() && text.isNotBlank()) {
+            sentences.add(text.trim())
+        }
+
+        return sentences
+    }
+
+    /**
+     * Create chunks from sentences, respecting chunk size and overlap
+     * Primary strategy: Group sentences together
+     * Fallback: Split large sentences by size
+     */
+    private fun createChunksFromSentences(
+        sentences: List<String>,
+        metadata: Map<String, String>
+    ): List<TextChunk> {
+        val chunks = mutableListOf<TextChunk>()
+        var currentChunk = StringBuilder()
+        var currentStartPosition = 0
+        var absolutePosition = 0
+        var chunkIndex = 0
+
+        // Track sentences for overlap calculation
+        val sentencesInCurrentChunk = mutableListOf<String>()
+
+        for (sentenceIndex in sentences.indices) {
+            val sentence = sentences[sentenceIndex]
+
+            // Check if single sentence exceeds chunk size (needs fallback)
+            if (sentence.length > chunkSize) {
+                // Save current chunk if it has content
+                if (currentChunk.isNotEmpty()) {
+                    chunks.add(createChunk(
+                        text = currentChunk.toString().trim(),
+                        index = chunkIndex++,
+                        startPosition = currentStartPosition,
+                        endPosition = absolutePosition,
+                        metadata = metadata
+                    ))
+                    currentChunk.clear()
+                    sentencesInCurrentChunk.clear()
+                }
+
+                // Split large sentence by size (fallback strategy)
+                logger.debug("Sentence ${sentenceIndex + 1} exceeds chunk size (${sentence.length} chars), using size-based fallback")
+                val largeChunks = splitLargeSentenceBySize(
+                    sentence = sentence,
+                    startIndex = chunkIndex,
+                    startPosition = absolutePosition,
+                    metadata = metadata
+                )
+                chunks.addAll(largeChunks)
+                chunkIndex += largeChunks.size
+
+                absolutePosition += sentence.length
+                currentStartPosition = absolutePosition
+                continue
+            }
+
+            // Check if adding this sentence would exceed chunk size
+            val potentialLength = currentChunk.length +
+                (if (currentChunk.isEmpty()) 0 else 1) + // space separator
+                sentence.length
+
+            if (potentialLength > chunkSize && currentChunk.isNotEmpty()) {
+                // Current chunk is full, save it
+                val chunkText = currentChunk.toString().trim()
+                chunks.add(createChunk(
+                    text = chunkText,
+                    index = chunkIndex++,
+                    startPosition = currentStartPosition,
+                    endPosition = absolutePosition,
+                    metadata = metadata
+                ))
+
+                // Calculate overlap: include last N characters/sentences from previous chunk
+                val overlapText = calculateOverlap(sentencesInCurrentChunk)
+                currentChunk.clear()
+                currentChunk.append(overlapText)
+
+                // Update start position to account for overlap
+                currentStartPosition = absolutePosition - overlapText.length
+                sentencesInCurrentChunk.clear()
+
+                // Add overlap sentences back to tracking
+                if (overlapText.isNotEmpty()) {
+                    val overlapSentences = splitIntoSentences(overlapText)
+                    sentencesInCurrentChunk.addAll(overlapSentences)
+                }
+            }
+
+            // Add sentence to current chunk
+            if (currentChunk.isNotEmpty()) {
+                currentChunk.append(" ")
+            }
+            currentChunk.append(sentence)
+            sentencesInCurrentChunk.add(sentence)
+            absolutePosition += sentence.length
+        }
+
+        // Add final chunk if it has content
+        if (currentChunk.isNotEmpty()) {
+            chunks.add(createChunk(
+                text = currentChunk.toString().trim(),
+                index = chunkIndex,
+                startPosition = currentStartPosition,
+                endPosition = absolutePosition,
+                metadata = metadata
+            ))
+        }
+
+        return chunks
+    }
+
+    /**
+     * Calculate overlap text from previous chunk
+     * Takes last sentences up to overlap size
+     */
+    private fun calculateOverlap(previousSentences: List<String>): String {
+        if (previousSentences.isEmpty() || chunkOverlap == 0) {
+            return ""
+        }
+
+        // Start from the end and work backwards
+        val overlapBuilder = StringBuilder()
+        for (i in previousSentences.size - 1 downTo 0) {
+            val sentence = previousSentences[i]
+            val potentialLength = overlapBuilder.length +
+                (if (overlapBuilder.isEmpty()) 0 else 1) +
+                sentence.length
+
+            if (potentialLength <= chunkOverlap) {
+                // Add sentence at the beginning
+                if (overlapBuilder.isEmpty()) {
+                    overlapBuilder.append(sentence)
+                } else {
+                    overlapBuilder.insert(0, "$sentence ")
+                }
+            } else {
+                break
+            }
+        }
+
+        return overlapBuilder.toString()
+    }
+
+    /**
+     * Fallback: Split a large sentence by character size when it exceeds chunk size
+     */
+    private fun splitLargeSentenceBySize(
+        sentence: String,
+        startIndex: Int,
+        startPosition: Int,
+        metadata: Map<String, String>
+    ): List<TextChunk> {
+        val chunks = mutableListOf<TextChunk>()
+        var position = 0
+        var chunkIdx = startIndex
+
+        while (position < sentence.length) {
+            val endPosition = minOf(position + chunkSize, sentence.length)
+            var chunkText = sentence.substring(position, endPosition)
+
+            // Try to end at word boundary if not the last piece
+            if (endPosition < sentence.length) {
+                chunkText = trimToWordBoundary(chunkText)
+            }
+
+            chunks.add(createChunk(
+                text = chunkText.trim(),
+                index = chunkIdx++,
+                startPosition = startPosition + position,
+                endPosition = startPosition + position + chunkText.length,
+                metadata = metadata
+            ))
+
+            // Move position with overlap
+            position += chunkText.length - chunkOverlap
+
+            // Prevent infinite loop
+            if (chunkText.length <= chunkOverlap) {
+                position = endPosition
+            }
+        }
+
+        return chunks
+    }
+
+    /**
+     * Trim text to end at word boundary
+     */
+    private fun trimToWordBoundary(text: String): String {
+        val lastSpaceIndex = text.lastIndexOf(' ')
+        return if (lastSpaceIndex > text.length / 2) {
+            text.substring(0, lastSpaceIndex)
+        } else {
+            text
+        }
+    }
+
+    /**
+     * Helper to create TextChunk instance
+     */
+    private fun createChunk(
+        text: String,
+        index: Int,
+        startPosition: Int,
+        endPosition: Int,
+        metadata: Map<String, String>
+    ): TextChunk {
+        return TextChunk(
+            text = text,
+            index = index,
+            startPosition = startPosition,
+            endPosition = endPosition,
+            metadata = metadata
+        )
+    }
+
+    /**
+     * Clean text by normalizing whitespace
      */
     private fun cleanText(text: String): String {
         return text
             .replace(Regex("\\s+"), " ")  // Normalize whitespace
             .trim()
-    }
-
-    /**
-     * Trim text to end at sentence boundary (period, question mark, exclamation mark)
-     * Falls back to word boundary if no sentence boundary found
-     */
-    private fun trimToSentenceBoundary(text: String): String {
-        // Try to find sentence ending
-        val sentenceEndings = listOf('.', '!', '?')
-        for (i in text.length - 1 downTo maxOf(0, text.length - 100)) {
-            if (text[i] in sentenceEndings) {
-                return text.substring(0, i + 1)
-            }
-        }
-
-        // Fall back to word boundary
-        val lastSpaceIndex = text.lastIndexOf(' ')
-        if (lastSpaceIndex > text.length / 2) {
-            return text.substring(0, lastSpaceIndex)
-        }
-
-        // Return as is if no good boundary found
-        return text
     }
 }
