@@ -4,10 +4,30 @@ plugins {
     id("buildsrc.convention.kotlin-jvm")
     // Apply Kotlin Serialization plugin from `gradle/libs.versions.toml`.
     alias(libs.plugins.kotlinPluginSerialization)
+    // Apply Application plugin to make it executable
+    application
 }
 
 dependencies {
     // Apply the kotlinx bundle of dependencies from the version catalog (`gradle/libs.versions.toml`).
     implementation(libs.bundles.kotlinxEcosystem)
+
+    // Ktor client for OpenAI API calls
+    implementation(libs.bundles.ktorClient)
+
+    // Database dependencies
+    implementation(libs.bundles.exposed)
+    implementation(libs.sqliteJdbc)
+
+    // Logging
+    implementation(libs.slf4jSimple)
+
+    // Dotenv for environment variables
+    implementation(libs.dotenv)
+
     testImplementation(kotlin("test"))
+}
+
+application {
+    mainClass.set("io.github.devapro.ai.utils.UtilAppKt")
 }
