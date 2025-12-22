@@ -35,7 +35,7 @@ fun main(args: Array<String>) {
             ?: throw IllegalStateException("OPENAI_API_KEY environment variable is required")
 
         // Configuration
-        val inputPath = args.getOrNull(0) ?: "embeddings.md"
+        val inputPath = args.getOrNull(0) ?: "and-doc"
         val dbPath = args.getOrNull(1) ?: "embeddings.db"
         val chunkSize = args.getOrNull(2)?.toIntOrNull() ?: 500
         val chunkOverlap = args.getOrNull(3)?.toIntOrNull() ?: 100
