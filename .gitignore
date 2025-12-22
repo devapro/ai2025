@@ -46,3 +46,4 @@ bin/
 history/
 mcp-config.json
 users.md
+/embeddings.db

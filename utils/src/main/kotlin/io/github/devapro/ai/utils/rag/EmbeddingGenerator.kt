@@ -4,6 +4,7 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
@@ -56,17 +57,25 @@ private data class Usage(
 )
 
 /**
+ * curl http://127.0.0.1:1234/v1/embeddings \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "model": "text-embedding-nomic-embed-text-v1.5",
+ *     "input": "Some text to embed"
+ * }'
+ */
+/**
  * Component responsible for generating embeddings using OpenAI API
  * Uses text-embedding-3-small model for efficient embeddings
  */
 class EmbeddingGenerator(
     private val apiKey: String,
     private val httpClient: HttpClient,
-    private val model: String = "text-embedding-3-small",
+    private val model: String = "text-embedding-nomic-embed-text-v1.5",
+    private val apiUrl: String = "http://127.0.0.1:1234/v1/embeddings",
     private val batchSize: Int = 100  // OpenAI allows up to 2048 inputs per request
 ) {
     private val logger = LoggerFactory.getLogger(EmbeddingGenerator::class.java)
-    private val apiUrl = "https://api.openai.com/v1/embeddings"
 
     /**
      * Generate embeddings for a list of text chunks
@@ -97,7 +106,7 @@ class EmbeddingGenerator(
 
             // Small delay between batches to respect rate limits
             if (batchIndex < batches.size - 1) {
-                kotlinx.coroutines.delay(100)
+                delay(100)
             }
         }
 

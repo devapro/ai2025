@@ -11,6 +11,8 @@ import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.mcp.config.McpConfigLoader
 import io.github.devapro.ai.repository.FileRepository
 import io.github.devapro.ai.scheduler.DailySummaryScheduler
+import io.github.devapro.ai.utils.rag.EmbeddingGenerator
+import io.github.devapro.ai.utils.rag.VectorDatabase
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -64,6 +66,28 @@ val appModule = module {
 
     single(qualifier = named("dailySummaryMinute")) {
         get<Dotenv>()["DAILY_SUMMARY_MINUTE"]?.toIntOrNull() ?: 0
+    }
+
+    // RAG configuration
+
+    single(qualifier = named("ragDatabasePath")) {
+        get<Dotenv>()["RAG_DATABASE_PATH"] ?: "embeddings.db"
+    }
+
+    single(qualifier = named("ragEmbeddingApiUrl")) {
+        get<Dotenv>()["RAG_EMBEDDING_API_URL"] ?: "http://127.0.0.1:1234/v1/embeddings"
+    }
+
+    single(qualifier = named("ragEmbeddingModel")) {
+        get<Dotenv>()["RAG_EMBEDDING_MODEL"] ?: "text-embedding-nomic-embed-text-v1.5"
+    }
+
+    single(qualifier = named("ragTopK")) {
+        get<Dotenv>()["RAG_TOP_K"]?.toIntOrNull() ?: 5
+    }
+
+    single(qualifier = named("ragMinSimilarity")) {
+        get<Dotenv>()["RAG_MIN_SIMILARITY"]?.toDoubleOrNull() ?: 0.7
     }
 
     // Shared HTTP client (used by both AiAgent and MCP)
@@ -121,6 +145,24 @@ val appModule = module {
         )
     }
 
+    // RAG components (optional, only if RAG is enabled)
+    single<VectorDatabase?> {
+        val dbPath: String = get(qualifier = named("ragDatabasePath"))
+        VectorDatabase(dbPath)
+    }
+
+    single<EmbeddingGenerator> {
+        val apiKey: String = get(qualifier = named("openAiApiKey"))
+        val apiUrl: String = get(qualifier = named("ragEmbeddingApiUrl"))
+        val model: String = get(qualifier = named("ragEmbeddingModel"))
+        EmbeddingGenerator(
+            apiKey = apiKey,
+            httpClient = get(),
+            model = model,
+            apiUrl = apiUrl
+        )
+    }
+
     // Repository layer
     single {
         FileRepository(
@@ -144,7 +186,7 @@ val appModule = module {
         AiAgentResponseFormatter()
     }
 
-    // Agent layer (now with MCP support)
+    // Agent layer (now with MCP and RAG support)
     single {
         AiAgent(
             apiKey = get(qualifier = named("openAiApiKey")),
@@ -152,7 +194,11 @@ val appModule = module {
             mcpManager = get(),
             httpClient = get(),
             conversationSummarizer = get(),
-            responseFormatter = get()
+            responseFormatter = get(),
+            vectorDatabase = get(),
+            embeddingGenerator = get(),
+            ragTopK = get(qualifier = named("ragTopK")),
+            ragMinSimilarity = get(qualifier = named("ragMinSimilarity"))
         )
     }
 

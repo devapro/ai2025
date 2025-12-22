@@ -63,6 +63,7 @@ The application uses environment variables from a `.env` file:
 - `history/` - User conversation history (git-ignored, auto-created)
 - `mcp-config.json` - MCP server configuration (git-ignored, contains API keys/credentials)
 - `mcp-config.json.example` - Example MCP configuration file
+- `embeddings.db` - Vector database for RAG (created by :utils:run, git-ignored)
 
 ## Project Architecture
 
@@ -95,12 +96,17 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
   - **Markdown support**: All messages sent with ParseMode.MARKDOWN
   - Injected as singleton via Koin
 - `agent/` - AI Agent component
-  - `AiAgent.kt` - Manages AI conversations using OpenAI API with MCP tool support
+  - `AiAgent.kt` - Manages AI conversations using OpenAI API with MCP and RAG tool support
   - Uses shared Ktor HTTP client for API communication
   - Handles conversation context and history
   - **MCP Tool Integration**: Automatically uses external tools when needed
+  - **RAG Integration**: Built-in `search_documents` tool for semantic document search
+    - Query → Embedding → Vector Search → Results
+    - Automatic context retrieval from indexed documents
+    - Configurable via environment variables
+    - Uses local LM Studio for embeddings (no API costs)
   - **Function Calling**: Implements OpenAI function calling for tool execution
-  - **Multi-turn conversations**: Handles tool calls across multiple API requests (max 5 iterations)
+  - **Multi-turn conversations**: Handles tool calls across multiple API requests (max 20 iterations)
   - **Response format**: Answer response with fields:
     - `type`: Always "answer"
     - `text`: Full answer text with markdown formatting
@@ -109,7 +115,7 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
   - **General AI Assistant**: Answers questions, provides explanations, offers advice
   - **Performance tracking**: Measures response time and token usage
   - Includes data classes for OpenAI request/response serialization
-  - Injected as singleton via Koin with dependencies: apiKey, FileRepository, McpManager, HttpClient
+  - Injected as singleton via Koin with dependencies: apiKey, FileRepository, McpManager, HttpClient, VectorDatabase?, EmbeddingGenerator?
 - `mcp/` - Model Context Protocol integration
   - `model/McpModels.kt` - JSON-RPC and MCP protocol data structures
   - `transport/McpTransport.kt` - Transport interface for all communication protocols
@@ -241,7 +247,12 @@ This is an AI Assistant Telegram Bot implemented with a modular architecture:
 ## Recent Development History
 
 Based on git commit history, recent features include:
-- **RAG Implementation** (latest): Complete RAG pipeline in utils module
+- **RAG Integration into Main Bot** (latest): Built-in document search tool
+  - Automatic semantic search via `search_documents` tool
+  - Query → embedding → vector similarity → contextualized response
+  - Configurable via environment variables
+  - Graceful degradation if not enabled
+- **RAG Implementation**: Complete RAG pipeline in utils module
   - Document indexing with text chunking
   - Local embedding generation (LM Studio)
   - Vector database with similarity search
@@ -705,24 +716,134 @@ Please answer based on the context provided.
 """.trimIndent()
 ```
 
-### Integration Opportunities
+### Integration with Telegram Bot
 
-**Future Integration with Telegram Bot:**
+**✅ ACTIVE: Built-in RAG Search Tool**
 
-1. **Knowledge Base Tool via MCP:**
-   - Create MCP server that exposes vector search
-   - AI agent automatically searches docs when needed
-   - Retrieve relevant context for user questions
+The RAG system is now fully integrated into the main Telegram bot application as a built-in tool. When enabled, the AI agent can automatically search indexed documents to answer user questions.
 
-2. **Direct Integration:**
-   - Load VectorDatabase in AiAgent
-   - Search embeddings before calling OpenAI
-   - Include relevant chunks in system context
+**How it Works:**
 
-3. **Document Management Commands:**
-   - `/index <file>` - Index new documents
-   - `/search <query>` - Direct semantic search
+1. **Enable RAG in `.env`:**
+   ```bash
+   RAG_ENABLED=true
+   RAG_DATABASE_PATH=embeddings.db
+   RAG_EMBEDDING_API_URL=http://127.0.0.1:1234/v1/embeddings
+   RAG_EMBEDDING_MODEL=text-embedding-nomic-embed-text-v1.5
+   RAG_TOP_K=5
+   RAG_MIN_SIMILARITY=0.7
+   ```
+
+2. **Index Documents First:**
+   ```bash
+   # Create embeddings database using utils module
+   ./gradlew :utils:run --args="docs/knowledge-base.md embeddings.db"
+   ```
+
+3. **Start Bot with RAG:**
+   ```bash
+   # Ensure LM Studio is running at http://127.0.0.1:1234
+   ./gradlew run
+   ```
+
+**Automatic Tool Usage:**
+
+When a user asks a question, the AI agent:
+1. Evaluates if document search would be helpful
+2. Automatically calls `search_documents` tool with appropriate query
+3. Receives relevant document chunks from vector database
+4. Generates answer based on retrieved context
+5. Returns contextualized response to user
+
+**Example Conversation:**
+
+```
+User: How do I authenticate users in the application?
+
+[Agent internally calls: search_documents("user authentication")]
+[Searches embeddings.db, finds relevant chunks]
+[Receives: Authentication documentation chunks with 0.85+ similarity]
+
+Bot: Based on the documentation, user authentication is handled using...
+[Answer includes information from retrieved chunks]
+```
+
+**Tool Definition:**
+
+The `search_documents` tool is automatically available when RAG is enabled:
+- **Name:** `search_documents`
+- **Description:** Search through indexed documents using semantic similarity
+- **Parameters:**
+  - `query` (required): The search query to find relevant documents
+- **Returns:** Formatted text with top-K most similar document chunks
+
+**Architecture:**
+
+```
+User Question
+  ↓
+AiAgent.processMessage()
+  ↓
+OpenAI API (with search_documents tool available)
+  ↓
+[AI decides to use search_documents]
+  ↓
+AiAgent.executeSearchDocuments()
+  ├─ Extract query from parameters
+  ├─ EmbeddingGenerator.generateEmbedding(query)
+  ├─ VectorDatabase.search(embedding, topK, minSimilarity)
+  └─ Format results with metadata
+  ↓
+Results returned to OpenAI as tool output
+  ↓
+OpenAI generates final answer
+  ↓
+User receives contextualized response
+```
+
+**Configuration Options:**
+
+All RAG settings are configurable via environment variables:
+- `RAG_ENABLED`: Enable/disable RAG functionality (default: false)
+- `RAG_DATABASE_PATH`: Path to embeddings database (default: embeddings.db)
+- `RAG_EMBEDDING_API_URL`: LM Studio API endpoint (default: http://127.0.0.1:1234/v1/embeddings)
+- `RAG_EMBEDDING_MODEL`: Embedding model name (default: text-embedding-nomic-embed-text-v1.5)
+- `RAG_TOP_K`: Number of results to return (default: 5)
+- `RAG_MIN_SIMILARITY`: Minimum similarity threshold 0.0-1.0 (default: 0.7)
+
+**Requirements:**
+
+1. LM Studio running with text-embedding-nomic-embed-text-v1.5 model loaded
+2. Pre-indexed documents in embeddings database (created via `:utils:run`)
+3. `RAG_ENABLED=true` in `.env` file
+4. Sufficient context window for retrieved chunks + conversation
+
+**Performance Considerations:**
+
+- Embedding generation: ~100-500ms per query (depends on local GPU/CPU)
+- Vector search: <100ms for 10K vectors
+- Total overhead: ~200-600ms per RAG-enabled query
+- Retrieved chunks included in OpenAI API context (counts toward token limit)
+
+**Graceful Degradation:**
+
+- If RAG not enabled: Bot works normally without document search
+- If database not found: Warning logged, tool not added
+- If LM Studio not running: Error returned to LLM, which handles gracefully
+- If no results found: LLM informed, generates answer without context
+
+**Future Enhancements:**
+
+1. **Document Management Commands:**
+   - `/index <file>` - Index new documents from chat
+   - `/search <query>` - Direct semantic search without conversation
    - `/stats` - Show indexed document statistics
+
+2. **Advanced Features:**
+   - Multiple knowledge bases with namespacing
+   - Automatic re-ranking with cross-encoder
+   - Hybrid search (keyword + semantic)
+   - Document metadata filtering
 
 ### Configuration Recommendations
 
@@ -919,6 +1040,12 @@ response content
   - Break complex topics into understandable parts
   - Be honest about limitations when uncertain
   - Use markdown formatting (*bold*, _italic_, bullet lists)
+- **RAG Search Instructions** (when search_documents is available):
+  - **Search before saying "I don't know"** - Prioritize using knowledge base
+  - **Proactive search** - Use for domain-specific, technical, or "how to" questions
+  - **Synthesize and cite** - Combine search results with general knowledge
+  - **Multiple searches** - Rephrase query if first attempt doesn't find relevant info
+  - **Use specific queries** - Match search terms to user's question
 - AI is instructed to provide helpful, relevant, and complete responses
 - Changes take effect on next message (no restart needed in Docker due to volume mount)
 - OpenAI API is configured with `response_format: json_object` to enforce JSON responses

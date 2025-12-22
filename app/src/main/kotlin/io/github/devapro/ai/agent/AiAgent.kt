@@ -7,6 +7,8 @@ import com.knuddels.jtokkit.api.EncodingType
 import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.mcp.model.ToolContent
 import io.github.devapro.ai.repository.FileRepository
+import io.github.devapro.ai.utils.rag.EmbeddingGenerator
+import io.github.devapro.ai.utils.rag.VectorDatabase
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
@@ -26,6 +28,7 @@ import org.slf4j.LoggerFactory
 private const val modelName = "gpt-4o-mini"
 private const val MAX_TOOL_ITERATIONS = 20
 private const val MAX_MESSAGES_IN_CONTEXT = 10
+private const val ragEnabled = false
 
 class AiAgent(
     private val apiKey: String,
@@ -33,7 +36,11 @@ class AiAgent(
     private val mcpManager: McpManager,
     private val httpClient: HttpClient,
     private val conversationSummarizer: AiAgentConversationSummarizer,
-    private val responseFormatter: AiAgentResponseFormatter
+    private val responseFormatter: AiAgentResponseFormatter,
+    private val vectorDatabase: VectorDatabase,
+    private val embeddingGenerator: EmbeddingGenerator,
+    private val ragTopK: Int = 5,
+    private val ragMinSimilarity: Double = 0.7
 ) {
     private val logger = LoggerFactory.getLogger(AiAgent::class.java)
 
@@ -146,16 +153,25 @@ class AiAgent(
                             null
                         }
 
-                        // Call tool via MCP manager
-                        val toolResult = mcpManager.callTool(toolName, argsObject)
+                        // Execute tool: built-in or MCP
+                        val resultText = when (toolName) {
+                            "search_documents" -> {
+                                // Built-in RAG search tool
+                                executeSearchDocuments(argsObject)
+                            }
+                            else -> {
+                                // MCP tool
+                                val toolResult = mcpManager.callTool(toolName, argsObject)
 
-                        // Format tool result as text content
-                        val resultText = toolResult.content.joinToString("\n\n") { content ->
-                            when (content.type) {
-                                "text" -> content.text ?: ""
-                                "image" -> "[Image: ${content.mimeType}]"
-                                "resource" -> "[Resource: ${content.uri}]"
-                                else -> "[Unknown content type: ${content.type}]"
+                                // Format tool result as text content
+                                toolResult.content.joinToString("\n\n") { content ->
+                                    when (content.type) {
+                                        "text" -> content.text ?: ""
+                                        "image" -> "[Image: ${content.mimeType}]"
+                                        "resource" -> "[Resource: ${content.uri}]"
+                                        else -> "[Unknown content type: ${content.type}]"
+                                    }
+                                }
                             }
                         }
 
@@ -257,14 +273,17 @@ class AiAgent(
     }
 
     /**
-     * Get available tools from MCP manager and convert to OpenAI format
+     * Get available tools from MCP manager and built-in tools (like RAG), convert to OpenAI format
      */
     private suspend fun getAvailableTools(): List<OpenAITool> {
-        return if (mcpManager.isAvailable()) {
+        val allTools = mutableListOf<OpenAITool>()
+
+        // Add MCP tools
+        if (mcpManager.isAvailable()) {
             try {
                 val mcpTools = mcpManager.getAllTools()
                 logger.info("Found ${mcpTools.size} MCP tools available")
-                mcpTools.map { mcpTool ->
+                allTools.addAll(mcpTools.map { mcpTool ->
                     OpenAITool(
                         function = OpenAIFunction(
                             name = mcpTool.name,
@@ -272,14 +291,110 @@ class AiAgent(
                             parameters = mcpTool.inputSchema
                         )
                     )
-                }
+                })
             } catch (e: Exception) {
                 logger.error("Error fetching MCP tools: ${e.message}", e)
-                emptyList()
             }
         } else {
             logger.debug("No MCP tools available")
-            emptyList()
+        }
+
+        // Add built-in RAG tool if enabled
+        if (ragEnabled) {
+            logger.info("Adding built-in RAG search_documents tool")
+            allTools.add(createSearchDocumentsTool())
+        }
+
+        return allTools
+    }
+
+    /**
+     * Create the search_documents tool definition for OpenAI
+     */
+    private fun createSearchDocumentsTool(): OpenAITool {
+        return OpenAITool(
+            function = OpenAIFunction(
+                name = "search_documents",
+                description = "Search through indexed documents using semantic similarity. " +
+                        "Use this tool when you need to find relevant information from the knowledge base. " +
+                        "The search returns the most relevant text chunks that match the query semantically.",
+                parameters = buildJsonObject {
+                    put("type", JsonPrimitive("object"))
+                    putJsonObject("properties") {
+                        putJsonObject("query") {
+                            put("type", JsonPrimitive("string"))
+                            put("description", JsonPrimitive("The search query to find relevant documents. " +
+                                    "Be specific and detailed in your query for better results."))
+                        }
+                    }
+                    putJsonArray("required") {
+                        add(JsonPrimitive("query"))
+                    }
+                }
+            )
+        )
+    }
+
+    /**
+     * Execute the search_documents tool: query → embedding → similarity search → results
+     */
+    private suspend fun executeSearchDocuments(args: JsonObject?): String {
+        if (vectorDatabase == null || embeddingGenerator == null) {
+            return "Error: RAG is not properly configured"
+        }
+
+        try {
+            // Extract query from arguments
+            val query = args?.get("query")?.jsonPrimitive?.content
+            if (query.isNullOrBlank()) {
+                return "Error: Query parameter is required"
+            }
+
+            logger.info("Searching documents for query: $query")
+
+            // Step 1: Generate embedding for the query
+            val queryEmbedding = embeddingGenerator.generateEmbedding(query)
+            logger.info("Generated embedding for query (${queryEmbedding.vector.size} dimensions)")
+
+            // Step 2: Search for similar vectors in the database
+            val searchResults = vectorDatabase.search(
+                queryEmbedding = queryEmbedding.vector,
+                topK = ragTopK,
+                minSimilarity = ragMinSimilarity
+            )
+
+            logger.info("Found ${searchResults.size} results with similarity >= $ragMinSimilarity")
+
+            // Step 3: Format results for LLM
+            if (searchResults.isEmpty()) {
+                return "No relevant documents found for query: \"$query\""
+            }
+
+            val formattedResults = buildString {
+                appendLine("Found ${searchResults.size} relevant document(s):\n")
+
+                searchResults.forEachIndexed { index, result ->
+                    appendLine("--- Document ${index + 1} (Similarity: ${"%.3f".format(result.similarity)}) ---")
+
+                    // Add heading context if available
+                    result.metadata?.get("heading")?.let { heading ->
+                        appendLine("Section: $heading")
+                    }
+
+                    appendLine()
+                    appendLine(result.text)
+                    appendLine()
+                }
+
+                appendLine("---")
+                appendLine("Use the information from these documents to answer the user's question.")
+            }
+
+            return formattedResults
+
+        } catch (e: Exception) {
+            logger.error("Error executing search_documents: ${e.message}", e)
+            return "Error searching documents: ${e.message}"
         }
     }
 
