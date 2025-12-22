@@ -78,7 +78,17 @@ fun main(args: Array<String>) {
             try {
                 // Step 1: Chunk the text
                 logger.info("\n=== Step 1: Chunking text ===")
-                val chunks = textChunker.chunkText(text)
+
+                // Detect if input is Markdown based on file extension
+                val isMarkdown = inputFilePath.endsWith(".md", ignoreCase = true)
+                val chunks = if (isMarkdown) {
+                    logger.info("Detected Markdown format, using structure-aware chunking")
+                    textChunker.chunkMarkdown(text)
+                } else {
+                    logger.info("Using sentence-based chunking")
+                    textChunker.chunkText(text)
+                }
+
                 logger.info("Created ${chunks.size} chunks")
 
                 // Display chunk information

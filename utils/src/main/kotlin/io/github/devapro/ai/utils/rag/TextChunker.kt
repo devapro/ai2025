@@ -16,12 +16,14 @@ data class TextChunk(
 /**
  * Component responsible for splitting text into chunks with overlap
  * Implements best practices for RAG text chunking with sentence-first strategy
+ * Supports Markdown documents with code block preservation
  */
 class TextChunker(
     private val chunkSize: Int = 500,  // target characters per chunk
     private val chunkOverlap: Int = 100  // overlap between chunks
 ) {
     private val logger = LoggerFactory.getLogger(TextChunker::class.java)
+    private val markdownParser = MarkdownParser()
 
     // Sentence ending patterns (includes common abbreviations to avoid)
     private val sentenceEndingPattern = Regex("""[.!?]+(?=\s+[A-Z]|$)""")
@@ -56,6 +58,198 @@ class TextChunker(
         val chunks = createChunksFromSentences(sentences, metadata)
 
         logger.info("Created ${chunks.size} chunks from text (sentence-based chunking)")
+        return chunks
+    }
+
+    /**
+     * Split Markdown text into chunks preserving structure
+     * - Keeps code blocks intact (never splits them)
+     * - Groups content by sections (headings)
+     * - Preserves document structure
+     * - Includes heading context in chunks
+     *
+     * @param markdown The Markdown text to split
+     * @param metadata Optional metadata to attach to all chunks
+     * @return List of text chunks
+     */
+    fun chunkMarkdown(markdown: String, metadata: Map<String, String> = emptyMap()): List<TextChunk> {
+        if (markdown.isBlank()) {
+            logger.warn("Empty markdown provided for chunking")
+            return emptyList()
+        }
+
+        logger.info("Chunking markdown of length ${markdown.length} into chunks (structure-aware)")
+
+        // Parse markdown into sections
+        val sections = markdownParser.parseIntoSections(markdown)
+        logger.debug("Parsed ${sections.size} sections from markdown")
+
+        val chunks = mutableListOf<TextChunk>()
+        var chunkIndex = 0
+
+        sections.forEach { section ->
+            val sectionChunks = chunkSection(section, chunkIndex, metadata)
+            chunks.addAll(sectionChunks)
+            chunkIndex += sectionChunks.size
+        }
+
+        logger.info("Created ${chunks.size} chunks from markdown (structure-aware chunking)")
+        return chunks
+    }
+
+    /**
+     * Chunk a single section from Markdown
+     */
+    private fun chunkSection(
+        section: MarkdownSection,
+        startIndex: Int,
+        metadata: Map<String, String>
+    ): List<TextChunk> {
+        val chunks = mutableListOf<TextChunk>()
+        val headingText = section.heading?.text ?: ""
+        val headingContext = if (headingText.isNotEmpty()) "$headingText\n\n" else ""
+
+        // Try to fit entire section in one chunk
+        val fullSectionText = section.getFullText()
+        if (fullSectionText.length <= chunkSize) {
+            chunks.add(TextChunk(
+                text = fullSectionText,
+                index = startIndex,
+                startPosition = section.startPosition,
+                endPosition = section.endPosition,
+                metadata = metadata + ("heading" to headingText)
+            ))
+            return chunks
+        }
+
+        // Section is too large, need to split by elements
+        val currentChunk = StringBuilder()
+        if (headingContext.isNotEmpty()) {
+            currentChunk.append(headingContext)
+        }
+
+        var currentStartPos = section.startPosition
+        var chunkIdx = startIndex
+        val elementsToProcess = section.elements.toMutableList()
+
+        while (elementsToProcess.isNotEmpty()) {
+            val element = elementsToProcess.removeAt(0)
+
+            // Special handling for code blocks - never split them
+            if (element is MarkdownElement.CodeBlock) {
+                // If code block alone exceeds chunk size, make it its own chunk
+                if (element.text.length > chunkSize) {
+                    // Save current chunk if it has content
+                    if (currentChunk.length > headingContext.length) {
+                        chunks.add(createChunk(
+                            text = currentChunk.toString().trim(),
+                            index = chunkIdx++,
+                            startPosition = currentStartPos,
+                            endPosition = element.startPosition,
+                            metadata = metadata + ("heading" to headingText)
+                        ))
+                        currentChunk.clear()
+                        if (headingContext.isNotEmpty()) {
+                            currentChunk.append(headingContext)
+                        }
+                    }
+
+                    // Code block as its own chunk (with heading context)
+                    chunks.add(createChunk(
+                        text = headingContext + element.text,
+                        index = chunkIdx++,
+                        startPosition = element.startPosition,
+                        endPosition = element.endPosition,
+                        metadata = metadata + ("heading" to headingText) + ("type" to "code")
+                    ))
+
+                    currentStartPos = element.endPosition
+                    continue
+                }
+
+                // Check if adding code block would exceed chunk size
+                val potentialLength = currentChunk.length + element.text.length + 2
+                if (potentialLength > chunkSize && currentChunk.length > headingContext.length) {
+                    // Save current chunk
+                    chunks.add(createChunk(
+                        text = currentChunk.toString().trim(),
+                        index = chunkIdx++,
+                        startPosition = currentStartPos,
+                        endPosition = element.startPosition,
+                        metadata = metadata + ("heading" to headingText)
+                    ))
+
+                    // Start new chunk with heading and code block
+                    currentChunk.clear()
+                    if (headingContext.isNotEmpty()) {
+                        currentChunk.append(headingContext)
+                    }
+                    currentChunk.append(element.text).append("\n\n")
+                    currentStartPos = element.startPosition
+                } else {
+                    // Add code block to current chunk
+                    currentChunk.append(element.text).append("\n\n")
+                }
+            }
+            // Handle other elements (paragraphs, lists, etc.)
+            else {
+                val potentialLength = currentChunk.length + element.text.length + 2
+                if (potentialLength > chunkSize && currentChunk.length > headingContext.length) {
+                    // Save current chunk
+                    chunks.add(createChunk(
+                        text = currentChunk.toString().trim(),
+                        index = chunkIdx++,
+                        startPosition = currentStartPos,
+                        endPosition = element.startPosition,
+                        metadata = metadata + ("heading" to headingText)
+                    ))
+
+                    // Start new chunk with heading
+                    currentChunk.clear()
+                    if (headingContext.isNotEmpty()) {
+                        currentChunk.append(headingContext)
+                    }
+                    currentStartPos = element.startPosition
+                }
+
+                // For large paragraphs, split by sentences
+                if (element is MarkdownElement.Paragraph && element.text.length > chunkSize) {
+                    val sentences = splitIntoSentences(element.text)
+                    val sentenceChunks = createChunksFromSentences(sentences, metadata)
+
+                    // Add heading context to first sentence chunk
+                    if (sentenceChunks.isNotEmpty()) {
+                        val first = sentenceChunks.first()
+                        currentChunk.append(first.text).append("\n\n")
+
+                        // Add remaining sentence chunks
+                        sentenceChunks.drop(1).forEach { sentChunk ->
+                            chunks.add(createChunk(
+                                text = headingContext + sentChunk.text,
+                                index = chunkIdx++,
+                                startPosition = sentChunk.startPosition,
+                                endPosition = sentChunk.endPosition,
+                                metadata = metadata + ("heading" to headingText)
+                            ))
+                        }
+                    }
+                } else {
+                    currentChunk.append(element.text).append("\n\n")
+                }
+            }
+        }
+
+        // Save final chunk if it has content
+        if (currentChunk.length > headingContext.length) {
+            chunks.add(createChunk(
+                text = currentChunk.toString().trim(),
+                index = chunkIdx,
+                startPosition = currentStartPos,
+                endPosition = section.endPosition,
+                metadata = metadata + ("heading" to headingText)
+            ))
+        }
+
         return chunks
     }
 
