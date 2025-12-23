@@ -339,10 +339,6 @@ class AiAgent(
      * Execute the search_documents tool: query → embedding → similarity search → results
      */
     private suspend fun executeSearchDocuments(args: JsonObject?): String {
-        if (vectorDatabase == null || embeddingGenerator == null) {
-            return "Error: RAG is not properly configured"
-        }
-
         try {
             // Extract query from arguments
             val query = args?.get("query")?.jsonPrimitive?.content
