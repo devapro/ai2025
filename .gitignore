@@ -45,3 +45,4 @@ bin/
 .env
 history/
 mcp-config.json
+users.md
