@@ -1,23 +1,13 @@
 package io.github.devapro.ai.agent
 
-import com.knuddels.jtokkit.Encodings
-import com.knuddels.jtokkit.api.Encoding
-import com.knuddels.jtokkit.api.EncodingRegistry
-import com.knuddels.jtokkit.api.EncodingType
 import io.github.devapro.ai.mcp.McpManager
-import io.github.devapro.ai.mcp.model.ToolContent
 import io.github.devapro.ai.repository.FileRepository
 import io.github.devapro.ai.utils.rag.EmbeddingGenerator
 import io.github.devapro.ai.utils.rag.VectorDatabase
 import io.ktor.client.*
 import io.ktor.client.call.*
-import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
 
@@ -28,7 +18,6 @@ import org.slf4j.LoggerFactory
 private const val modelName = "gpt-4o-mini"
 private const val MAX_TOOL_ITERATIONS = 20
 private const val MAX_MESSAGES_IN_CONTEXT = 10
-private const val ragEnabled = false
 
 class AiAgent(
     private val apiKey: String,
@@ -37,16 +26,11 @@ class AiAgent(
     private val httpClient: HttpClient,
     private val conversationSummarizer: AiAgentConversationSummarizer,
     private val responseFormatter: AiAgentResponseFormatter,
-    private val vectorDatabase: VectorDatabase,
-    private val embeddingGenerator: EmbeddingGenerator,
-    private val ragTopK: Int = 5,
-    private val ragMinSimilarity: Double = 0.7
+    private val tokenCounter: TokenCounter,
+    private val toolProvider: ToolProvider,
+    private val ragSearchTool: RagSearchTool?
 ) {
     private val logger = LoggerFactory.getLogger(AiAgent::class.java)
-
-    // Token counting with jtokkit
-    private val encodingRegistry = Encodings.newDefaultEncodingRegistry()
-    private val encoding = encodingRegistry.getEncoding(EncodingType.O200K_BASE)
 
     /**
      * Process user message and generate response with MCP tool support
@@ -74,8 +58,8 @@ class AiAgent(
         // Add current user message
         messages.add(OpenAIMessage(role = "user", content = userMessage))
 
-        // Get available tools from MCP manager
-        val availableTools = getAvailableTools()
+        // Get available tools from tool provider
+        val availableTools = toolProvider.getAvailableTools()
 
         // Measure total response time
         val startTime = System.currentTimeMillis()
@@ -87,7 +71,7 @@ class AiAgent(
             logger.info("Tool calling iteration $iteration")
 
             // Count estimated tokens
-            val estimatedTokens = countTokens(messages)
+            val estimatedTokens = tokenCounter.countTokens(messages)
             logger.info("Estimated prompt tokens: $estimatedTokens")
 
             // Create request
@@ -157,7 +141,8 @@ class AiAgent(
                         val resultText = when (toolName) {
                             "search_documents" -> {
                                 // Built-in RAG search tool
-                                executeSearchDocuments(argsObject)
+                                ragSearchTool?.executeSearch(argsObject)
+                                    ?: "Error: RAG search tool not available"
                             }
                             else -> {
                                 // MCP tool
@@ -245,153 +230,6 @@ class AiAgent(
      */
     fun clearHistory(userId: Long) {
         fileRepository.clearUserHistory(userId)
-    }
-
-    /**
-     * Count tokens in messages before sending request
-     * Uses jtokkit to estimate token count
-     */
-    private fun countTokens(messages: List<OpenAIMessage>): Int {
-        var totalTokens = 0
-
-        // Count tokens for each message
-        messages.forEach { message ->
-            // Count tokens for role
-            totalTokens += encoding.countTokens(message.role)
-            // Count tokens for content (if present)
-            message.content?.let {
-                totalTokens += encoding.countTokens(it)
-            }
-            // Add overhead per message (typically 3-4 tokens per message for formatting)
-            totalTokens += 4
-        }
-
-        // Add overhead for reply priming (typically 3 tokens)
-        totalTokens += 3
-
-        return totalTokens
-    }
-
-    /**
-     * Get available tools from MCP manager and built-in tools (like RAG), convert to OpenAI format
-     */
-    private suspend fun getAvailableTools(): List<OpenAITool> {
-        val allTools = mutableListOf<OpenAITool>()
-
-        // Add MCP tools
-        if (mcpManager.isAvailable()) {
-            try {
-                val mcpTools = mcpManager.getAllTools()
-                logger.info("Found ${mcpTools.size} MCP tools available")
-                allTools.addAll(mcpTools.map { mcpTool ->
-                    OpenAITool(
-                        function = OpenAIFunction(
-                            name = mcpTool.name,
-                            description = mcpTool.description,
-                            parameters = mcpTool.inputSchema
-                        )
-                    )
-                })
-            } catch (e: Exception) {
-                logger.error("Error fetching MCP tools: ${e.message}", e)
-            }
-        } else {
-            logger.debug("No MCP tools available")
-        }
-
-        // Add built-in RAG tool if enabled
-        if (ragEnabled) {
-            logger.info("Adding built-in RAG search_documents tool")
-            allTools.add(createSearchDocumentsTool())
-        }
-
-        return allTools
-    }
-
-    /**
-     * Create the search_documents tool definition for OpenAI
-     */
-    private fun createSearchDocumentsTool(): OpenAITool {
-        return OpenAITool(
-            function = OpenAIFunction(
-                name = "search_documents",
-                description = "Search through indexed documents using semantic similarity. " +
-                        "Use this tool when you need to find relevant information from the knowledge base. " +
-                        "The search returns the most relevant text chunks that match the query semantically.",
-                parameters = buildJsonObject {
-                    put("type", JsonPrimitive("object"))
-                    putJsonObject("properties") {
-                        putJsonObject("query") {
-                            put("type", JsonPrimitive("string"))
-                            put("description", JsonPrimitive("The search query to find relevant documents. " +
-                                    "Be specific and detailed in your query for better results."))
-                        }
-                    }
-                    putJsonArray("required") {
-                        add(JsonPrimitive("query"))
-                    }
-                }
-            )
-        )
-    }
-
-    /**
-     * Execute the search_documents tool: query → embedding → similarity search → results
-     */
-    private suspend fun executeSearchDocuments(args: JsonObject?): String {
-        try {
-            // Extract query from arguments
-            val query = args?.get("query")?.jsonPrimitive?.content
-            if (query.isNullOrBlank()) {
-                return "Error: Query parameter is required"
-            }
-
-            logger.info("Searching documents for query: $query")
-
-            // Step 1: Generate embedding for the query
-            val queryEmbedding = embeddingGenerator.generateEmbedding(query)
-            logger.info("Generated embedding for query (${queryEmbedding.vector.size} dimensions)")
-
-            // Step 2: Search for similar vectors in the database
-            val searchResults = vectorDatabase.search(
-                queryEmbedding = queryEmbedding.vector,
-                topK = ragTopK,
-                minSimilarity = ragMinSimilarity
-            )
-
-            logger.info("Found ${searchResults.size} results with similarity >= $ragMinSimilarity")
-
-            // Step 3: Format results for LLM
-            if (searchResults.isEmpty()) {
-                return "No relevant documents found for query: \"$query\""
-            }
-
-            val formattedResults = buildString {
-                appendLine("Found ${searchResults.size} relevant document(s):\n")
-
-                searchResults.forEachIndexed { index, result ->
-                    appendLine("--- Document ${index + 1} (Similarity: ${"%.3f".format(result.similarity)}) ---")
-
-                    // Add heading context if available
-                    result.metadata?.get("heading")?.let { heading ->
-                        appendLine("Section: $heading")
-                    }
-
-                    appendLine()
-                    appendLine(result.text)
-                    appendLine()
-                }
-
-                appendLine("---")
-                appendLine("Use the information from these documents to answer the user's question.")
-            }
-
-            return formattedResults
-
-        } catch (e: Exception) {
-            logger.error("Error executing search_documents: ${e.message}", e)
-            return "Error searching documents: ${e.message}"
-        }
     }
 
     fun close() {

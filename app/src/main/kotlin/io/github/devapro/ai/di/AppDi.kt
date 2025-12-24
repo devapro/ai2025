@@ -6,6 +6,9 @@ import io.github.devapro.ai.AppShutDownManager
 import io.github.devapro.ai.agent.AiAgent
 import io.github.devapro.ai.agent.AiAgentConversationSummarizer
 import io.github.devapro.ai.agent.AiAgentResponseFormatter
+import io.github.devapro.ai.agent.RagSearchTool
+import io.github.devapro.ai.agent.TokenCounter
+import io.github.devapro.ai.agent.ToolProvider
 import io.github.devapro.ai.bot.TelegramBot
 import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.mcp.config.McpConfigLoader
@@ -69,6 +72,10 @@ val appModule = module {
     }
 
     // RAG configuration
+
+    single(qualifier = named("ragEnabled")) {
+        get<Dotenv>()["RAG_ENABLED"]?.toBoolean() ?: false
+    }
 
     single(qualifier = named("ragDatabasePath")) {
         get<Dotenv>()["RAG_DATABASE_PATH"] ?: "embeddings.db"
@@ -186,6 +193,41 @@ val appModule = module {
         AiAgentResponseFormatter()
     }
 
+    // Token counter component
+    single {
+        TokenCounter()
+    }
+
+    // RAG search tool component (optional, only if RAG is enabled)
+    single<RagSearchTool?> {
+        val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
+        if (ragEnabled) {
+            val vectorDatabase: VectorDatabase? = get()
+            val embeddingGenerator: EmbeddingGenerator = get()
+            if (vectorDatabase != null) {
+                RagSearchTool(
+                    vectorDatabase = vectorDatabase,
+                    embeddingGenerator = embeddingGenerator,
+                    ragTopK = get(qualifier = named("ragTopK")),
+                    ragMinSimilarity = get(qualifier = named("ragMinSimilarity"))
+                )
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
+    // Tool provider component
+    single {
+        ToolProvider(
+            mcpManager = get(),
+            ragSearchTool = get(),
+            ragEnabled = get(qualifier = named("ragEnabled"))
+        )
+    }
+
     // Agent layer (now with MCP and RAG support)
     single {
         AiAgent(
@@ -195,10 +237,9 @@ val appModule = module {
             httpClient = get(),
             conversationSummarizer = get(),
             responseFormatter = get(),
-            vectorDatabase = get(),
-            embeddingGenerator = get(),
-            ragTopK = get(qualifier = named("ragTopK")),
-            ragMinSimilarity = get(qualifier = named("ragMinSimilarity"))
+            tokenCounter = get(),
+            toolProvider = get(),
+            ragSearchTool = get()
         )
     }
 
