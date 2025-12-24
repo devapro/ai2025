@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory
 /**
  * Represents different types of Markdown elements
  */
-sealed class MarkdownElement {
+internal sealed class MarkdownElement {
     abstract val text: String
     abstract val startPosition: Int
     abstract val endPosition: Int
@@ -47,7 +47,7 @@ sealed class MarkdownElement {
 /**
  * Represents a section with a heading and its content
  */
-data class MarkdownSection(
+internal data class MarkdownSection(
     val heading: MarkdownElement.Heading?,
     val elements: List<MarkdownElement>,
     val startPosition: Int,
@@ -69,7 +69,7 @@ data class MarkdownSection(
  * Parser for Markdown documents
  * Identifies structural elements like headings, code blocks, lists, and paragraphs
  */
-class MarkdownParser {
+internal class MarkdownParser {
     private val logger = LoggerFactory.getLogger(MarkdownParser::class.java)
 
     /**

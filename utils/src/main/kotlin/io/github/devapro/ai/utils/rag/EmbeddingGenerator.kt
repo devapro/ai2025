@@ -71,8 +71,8 @@ private data class Usage(
 class EmbeddingGenerator(
     private val apiKey: String,
     private val httpClient: HttpClient,
-    private val model: String = "text-embedding-nomic-embed-text-v1.5",
-    private val apiUrl: String = "http://127.0.0.1:1234/v1/embeddings",
+    private val model: String,
+    private val apiUrl: String,
     private val batchSize: Int = 100  // OpenAI allows up to 2048 inputs per request
 ) {
     private val logger = LoggerFactory.getLogger(EmbeddingGenerator::class.java)

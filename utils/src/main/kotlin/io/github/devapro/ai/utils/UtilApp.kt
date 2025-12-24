@@ -34,6 +34,12 @@ fun main(args: Array<String>) {
         val openAiApiKey = dotenv["OPENAI_API_KEY"]
             ?: throw IllegalStateException("OPENAI_API_KEY environment variable is required")
 
+        val embeddingApiUrl = dotenv["RAG_EMBEDDING_API_URL"]
+            ?: "http://127.0.0.1:1234/v1/embeddings"
+
+        val embeddingModel = dotenv["RAG_EMBEDDING_MODEL"]
+            ?: "text-embedding-nomic-embed-text-v1.5"
+
         // Configuration
         val inputPath = args.getOrNull(0) ?: "and-doc"
         val dbPath = args.getOrNull(1) ?: "embeddings.db"
@@ -47,6 +53,8 @@ fun main(args: Array<String>) {
         logger.info("  Chunk size: $chunkSize")
         logger.info("  Chunk overlap: $chunkOverlap")
         logger.info("  File extensions: ${fileExtensions.joinToString(", ")}")
+        logger.info("  Embedding API URL: $embeddingApiUrl")
+        logger.info("  Embedding model: $embeddingModel")
 
         // Check if input exists
         val input = File(inputPath)
@@ -88,7 +96,9 @@ fun main(args: Array<String>) {
         val textChunker = TextChunker(chunkSize = chunkSize, chunkOverlap = chunkOverlap)
         val embeddingGenerator = EmbeddingGenerator(
             apiKey = openAiApiKey,
-            httpClient = httpClient
+            httpClient = httpClient,
+            model = embeddingModel,
+            apiUrl = embeddingApiUrl
         )
         val vectorDb = VectorDatabase(dbPath = dbPath)
 
