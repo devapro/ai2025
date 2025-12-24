@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory
  */
 class ToolProvider(
     private val mcpManager: McpManager,
-    private val ragSearchTool: RagSearchToolInterface?,
+    private val ragSearchTool: RagSearchToolInterface,
     private val ragEnabled: Boolean
 ) {
     private val logger = LoggerFactory.getLogger(ToolProvider::class.java)
@@ -41,7 +41,7 @@ class ToolProvider(
         }
 
         // Add built-in RAG tool if enabled
-        if (ragEnabled && ragSearchTool != null) {
+        if (ragEnabled) {
             logger.info("Adding built-in RAG search_documents tool")
             allTools.add(ragSearchTool.createToolDefinition())
         }

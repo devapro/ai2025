@@ -28,7 +28,7 @@ class AiAgent(
     private val responseFormatter: AiAgentResponseFormatter,
     private val tokenCounter: TokenCounter,
     private val toolProvider: ToolProvider,
-    private val ragSearchTool: RagSearchToolInterface?
+    private val ragSearchTool: RagSearchToolInterface
 ) {
     private val logger = LoggerFactory.getLogger(AiAgent::class.java)
 
@@ -141,8 +141,7 @@ class AiAgent(
                         val resultText = when (toolName) {
                             "search_documents" -> {
                                 // Built-in RAG search tool
-                                ragSearchTool?.executeSearch(argsObject)
-                                    ?: "Error: RAG search tool not available"
+                                ragSearchTool.executeSearch(argsObject)
                             }
                             else -> {
                                 // MCP tool

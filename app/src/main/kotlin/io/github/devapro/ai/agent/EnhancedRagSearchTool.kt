@@ -19,9 +19,9 @@ import org.slf4j.LoggerFactory
 class EnhancedRagSearchTool(
     private val vectorDatabase: VectorDatabase,
     private val embeddingGenerator: EmbeddingGenerator,
-    private val resultsRefiner: RagResultsRefiner?,      // Optional: LLM-based re-ranking
-    private val queryExpander: QueryExpander?,           // Optional: Query expansion
-    private val contextCompressor: ContextCompressor?,   // Optional: Context compression
+    private val resultsRefiner: RagResultsRefiner,
+    private val queryExpander: QueryExpander,
+    private val contextCompressor: ContextCompressor,
     private val ragTopK: Int = 10,                       // Retrieve more initially
     private val ragMinSimilarity: Double = 0.6,          // Lower threshold (filtering happens later)
     private val finalTopK: Int = 3,                      // Return fewer after refinement
@@ -76,7 +76,7 @@ class EnhancedRagSearchTool(
             logger.info("Config: topK=$ragTopK, finalTopK=$finalTopK, expansion=$enableQueryExpansion, reranking=$enableReranking, compression=$enableCompression")
 
             // Step 1: Query Expansion (optional)
-            val queries = if (enableQueryExpansion && queryExpander != null) {
+            val queries = if (enableQueryExpansion) {
                 logger.info("Step 1: Query Expansion")
                 queryExpander.expandQuery(query, numVariations = 2)
             } else {
@@ -106,7 +106,7 @@ class EnhancedRagSearchTool(
             }
 
             // Step 3: LLM Re-ranking (optional)
-            val refinedResults = if (enableReranking && resultsRefiner != null) {
+            val refinedResults = if (enableReranking) {
                 logger.info("Step 3: LLM Re-ranking")
                 val scored = resultsRefiner.rerankResults(query, allResults, topK = finalTopK)
                 logger.info("Re-ranked to ${scored.size} results")
@@ -130,7 +130,7 @@ class EnhancedRagSearchTool(
 
             // Step 4: Context Compression (optional)
             logger.info("Step 4: Context Formatting/Compression")
-            val finalContext = if (enableCompression && contextCompressor != null) {
+            val finalContext = if (enableCompression) {
                 val chunks = refinedResults.map { it.text }
                 contextCompressor.smartCompress(query, chunks, targetTokens = 1500)
             } else {
@@ -183,10 +183,7 @@ class EnhancedRagSearchTool(
             "minSimilarity" to ragMinSimilarity,
             "queryExpansionEnabled" to enableQueryExpansion,
             "rerankingEnabled" to enableReranking,
-            "compressionEnabled" to enableCompression,
-            "hasQueryExpander" to (queryExpander != null),
-            "hasResultsRefiner" to (resultsRefiner != null),
-            "hasContextCompressor" to (contextCompressor != null)
+            "compressionEnabled" to enableCompression
         )
     }
 }

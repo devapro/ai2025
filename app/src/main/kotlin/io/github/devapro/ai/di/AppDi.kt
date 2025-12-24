@@ -1,7 +1,5 @@
 package io.github.devapro.ai.di
 
-import io.github.cdimascio.dotenv.Dotenv
-import io.github.cdimascio.dotenv.dotenv
 import io.github.devapro.ai.AppShutDownManager
 import io.github.devapro.ai.agent.AiAgent
 import io.github.devapro.ai.agent.AiAgentConversationSummarizer
@@ -32,101 +30,9 @@ import org.koin.dsl.module
 
 /**
  * Koin DI module that defines all application components
+ * Note: Configuration properties are defined in ConfigurationDi.kt
  */
 val appModule = module {
-    // Configuration
-    single<Dotenv> {
-        dotenv {
-            ignoreIfMissing = true
-        }
-    }
-
-    // Environment-based configuration properties
-    single(qualifier = named("openAiApiKey")) {
-        get<Dotenv>()["OPENAI_API_KEY"]
-            ?: throw IllegalStateException("OPENAI_API_KEY environment variable is required")
-    }
-
-    single(qualifier = named("telegramBotToken")) {
-        get<Dotenv>()["TELEGRAM_BOT_TOKEN"]
-            ?: throw IllegalStateException("TELEGRAM_BOT_TOKEN environment variable is required")
-    }
-
-    single(qualifier = named("promptsDir")) {
-        get<Dotenv>()["PROMPTS_DIR"] ?: "promts"
-    }
-
-    single(qualifier = named("historyDir")) {
-        get<Dotenv>()["HISTORY_DIR"] ?: "history"
-    }
-
-    single(qualifier = named("mcpConfigPath")) {
-        get<Dotenv>()["MCP_CONFIG_PATH"] ?: "mcp-config.json"
-    }
-
-    single(qualifier = named("usersFilePath")) {
-        get<Dotenv>()["USERS_FILE_PATH"] ?: "users.md"
-    }
-
-    single(qualifier = named("dailySummaryHour")) {
-        get<Dotenv>()["DAILY_SUMMARY_HOUR"]?.toIntOrNull() ?: 10
-    }
-
-    single(qualifier = named("dailySummaryMinute")) {
-        get<Dotenv>()["DAILY_SUMMARY_MINUTE"]?.toIntOrNull() ?: 0
-    }
-
-    // RAG configuration
-
-    single(qualifier = named("ragEnabled")) {
-        get<Dotenv>()["RAG_ENABLED"]?.toBoolean() ?: false
-    }
-
-    single(qualifier = named("ragDatabasePath")) {
-        get<Dotenv>()["RAG_DATABASE_PATH"] ?: "embeddings.db"
-    }
-
-    single(qualifier = named("ragEmbeddingApiUrl")) {
-        get<Dotenv>()["RAG_EMBEDDING_API_URL"] ?: "http://127.0.0.1:1234/v1/embeddings"
-    }
-
-    single(qualifier = named("ragEmbeddingModel")) {
-        get<Dotenv>()["RAG_EMBEDDING_MODEL"] ?: "text-embedding-nomic-embed-text-v1.5"
-    }
-
-    single(qualifier = named("ragTopK")) {
-        get<Dotenv>()["RAG_TOP_K"]?.toIntOrNull() ?: 10
-    }
-
-    single(qualifier = named("ragFinalTopK")) {
-        get<Dotenv>()["RAG_FINAL_TOP_K"]?.toIntOrNull() ?: 3
-    }
-
-    single(qualifier = named("ragMinSimilarity")) {
-        get<Dotenv>()["RAG_MIN_SIMILARITY"]?.toDoubleOrNull() ?: 0.6
-    }
-
-    // Enhanced RAG features configuration
-    single(qualifier = named("ragEnhancedMode")) {
-        get<Dotenv>()["RAG_ENHANCED_MODE"]?.toBoolean() ?: true
-    }
-
-    single(qualifier = named("ragEnableQueryExpansion")) {
-        get<Dotenv>()["RAG_ENABLE_QUERY_EXPANSION"]?.toBoolean() ?: true
-    }
-
-    single(qualifier = named("ragEnableReranking")) {
-        get<Dotenv>()["RAG_ENABLE_RERANKING"]?.toBoolean() ?: true
-    }
-
-    single(qualifier = named("ragEnableCompression")) {
-        get<Dotenv>()["RAG_ENABLE_COMPRESSION"]?.toBoolean() ?: true
-    }
-
-    single(qualifier = named("ragLlmModel")) {
-        get<Dotenv>()["RAG_LLM_MODEL"] ?: "gpt-4o-mini"
-    }
-
     // Shared HTTP client (used by both AiAgent and MCP)
     single {
         HttpClient(CIO) {
@@ -231,56 +137,39 @@ val appModule = module {
     // Enhanced RAG components (optional, only if enhanced mode is enabled)
 
     // Query expander for RAG
-    single<QueryExpander?> {
-        val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
-        val enhancedMode: Boolean = get(qualifier = named("ragEnhancedMode"))
-        if (ragEnabled && enhancedMode) {
-            QueryExpander(
-                apiKey = get(qualifier = named("openAiApiKey")),
-                httpClient = get(),
-                model = get(qualifier = named("ragLlmModel"))
-            )
-        } else null
+    single<QueryExpander> {
+        QueryExpander(
+            apiKey = get(qualifier = named("openAiApiKey")),
+            httpClient = get(),
+            model = get(qualifier = named("ragLlmModel"))
+        )
     }
 
     // Results refiner for RAG re-ranking
-    single<RagResultsRefiner?> {
-        val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
-        val enhancedMode: Boolean = get(qualifier = named("ragEnhancedMode"))
-        if (ragEnabled && enhancedMode) {
-            RagResultsRefiner(
-                apiKey = get(qualifier = named("openAiApiKey")),
-                httpClient = get(),
-                model = get(qualifier = named("ragLlmModel"))
-            )
-        } else null
+    single<RagResultsRefiner> {
+        RagResultsRefiner(
+            apiKey = get(qualifier = named("openAiApiKey")),
+            httpClient = get(),
+            model = get(qualifier = named("ragLlmModel"))
+        )
     }
 
     // Context compressor for RAG
-    single<ContextCompressor?> {
-        val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
-        val enhancedMode: Boolean = get(qualifier = named("ragEnhancedMode"))
-        if (ragEnabled && enhancedMode) {
-            ContextCompressor(
-                apiKey = get(qualifier = named("openAiApiKey")),
-                httpClient = get(),
-                tokenCounter = get(),
-                model = get(qualifier = named("ragLlmModel"))
-            )
-        } else null
+    single<ContextCompressor> {
+        ContextCompressor(
+            apiKey = get(qualifier = named("openAiApiKey")),
+            httpClient = get(),
+            tokenCounter = get(),
+            model = get(qualifier = named("ragLlmModel"))
+        )
     }
 
     // RAG search tool component (basic or enhanced based on config)
-    single<RagSearchToolInterface?> {
-        val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
+    single<RagSearchToolInterface> {
         val enhancedMode: Boolean = get(qualifier = named("ragEnhancedMode"))
 
-        if (!ragEnabled) return@single null
-
-        val vectorDatabase: VectorDatabase? = get()
+        val vectorDatabase: VectorDatabase = get()
         val embeddingGenerator: EmbeddingGenerator = get()
-
-        if (vectorDatabase == null) return@single null
 
         // Return enhanced or basic tool based on configuration
         if (enhancedMode) {
@@ -364,5 +253,6 @@ val appModule = module {
 
 /**
  * List of all Koin modules for the application
+ * Order matters: configurationModule must be loaded first as appModule depends on it
  */
-val allModules = listOf(appModule)
+val allModules = listOf(configurationModule, appModule)
