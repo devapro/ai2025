@@ -20,13 +20,13 @@ class RagSearchTool(
     private val embeddingGenerator: EmbeddingGenerator,
     private val ragTopK: Int = 5,
     private val ragMinSimilarity: Double = 0.7
-) {
+) : RagSearchToolInterface {
     private val logger = LoggerFactory.getLogger(RagSearchTool::class.java)
 
     /**
      * Create the search_documents tool definition for OpenAI
      */
-    fun createToolDefinition(): OpenAITool {
+    override fun createToolDefinition(): OpenAITool {
         return OpenAITool(
             function = OpenAIFunction(
                 name = "search_documents",
@@ -53,7 +53,7 @@ class RagSearchTool(
     /**
      * Execute the search_documents tool: query → embedding → similarity search → results
      */
-    suspend fun executeSearch(args: JsonObject?): String {
+    override suspend fun executeSearch(args: JsonObject?): String {
         try {
             // Extract query from arguments
             val query = args?.get("query")?.jsonPrimitive?.content

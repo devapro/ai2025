@@ -6,7 +6,12 @@ import io.github.devapro.ai.AppShutDownManager
 import io.github.devapro.ai.agent.AiAgent
 import io.github.devapro.ai.agent.AiAgentConversationSummarizer
 import io.github.devapro.ai.agent.AiAgentResponseFormatter
+import io.github.devapro.ai.agent.ContextCompressor
+import io.github.devapro.ai.agent.EnhancedRagSearchTool
+import io.github.devapro.ai.agent.QueryExpander
+import io.github.devapro.ai.agent.RagResultsRefiner
 import io.github.devapro.ai.agent.RagSearchTool
+import io.github.devapro.ai.agent.RagSearchToolInterface
 import io.github.devapro.ai.agent.TokenCounter
 import io.github.devapro.ai.agent.ToolProvider
 import io.github.devapro.ai.bot.TelegramBot
@@ -90,11 +95,36 @@ val appModule = module {
     }
 
     single(qualifier = named("ragTopK")) {
-        get<Dotenv>()["RAG_TOP_K"]?.toIntOrNull() ?: 5
+        get<Dotenv>()["RAG_TOP_K"]?.toIntOrNull() ?: 10
+    }
+
+    single(qualifier = named("ragFinalTopK")) {
+        get<Dotenv>()["RAG_FINAL_TOP_K"]?.toIntOrNull() ?: 3
     }
 
     single(qualifier = named("ragMinSimilarity")) {
-        get<Dotenv>()["RAG_MIN_SIMILARITY"]?.toDoubleOrNull() ?: 0.7
+        get<Dotenv>()["RAG_MIN_SIMILARITY"]?.toDoubleOrNull() ?: 0.6
+    }
+
+    // Enhanced RAG features configuration
+    single(qualifier = named("ragEnhancedMode")) {
+        get<Dotenv>()["RAG_ENHANCED_MODE"]?.toBoolean() ?: true
+    }
+
+    single(qualifier = named("ragEnableQueryExpansion")) {
+        get<Dotenv>()["RAG_ENABLE_QUERY_EXPANSION"]?.toBoolean() ?: true
+    }
+
+    single(qualifier = named("ragEnableReranking")) {
+        get<Dotenv>()["RAG_ENABLE_RERANKING"]?.toBoolean() ?: true
+    }
+
+    single(qualifier = named("ragEnableCompression")) {
+        get<Dotenv>()["RAG_ENABLE_COMPRESSION"]?.toBoolean() ?: true
+    }
+
+    single(qualifier = named("ragLlmModel")) {
+        get<Dotenv>()["RAG_LLM_MODEL"] ?: "gpt-4o-mini"
     }
 
     // Shared HTTP client (used by both AiAgent and MCP)
@@ -198,24 +228,82 @@ val appModule = module {
         TokenCounter()
     }
 
-    // RAG search tool component (optional, only if RAG is enabled)
-    single<RagSearchTool?> {
+    // Enhanced RAG components (optional, only if enhanced mode is enabled)
+
+    // Query expander for RAG
+    single<QueryExpander?> {
         val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
-        if (ragEnabled) {
-            val vectorDatabase: VectorDatabase? = get()
-            val embeddingGenerator: EmbeddingGenerator = get()
-            if (vectorDatabase != null) {
-                RagSearchTool(
-                    vectorDatabase = vectorDatabase,
-                    embeddingGenerator = embeddingGenerator,
-                    ragTopK = get(qualifier = named("ragTopK")),
-                    ragMinSimilarity = get(qualifier = named("ragMinSimilarity"))
-                )
-            } else {
-                null
-            }
+        val enhancedMode: Boolean = get(qualifier = named("ragEnhancedMode"))
+        if (ragEnabled && enhancedMode) {
+            QueryExpander(
+                apiKey = get(qualifier = named("openAiApiKey")),
+                httpClient = get(),
+                model = get(qualifier = named("ragLlmModel"))
+            )
+        } else null
+    }
+
+    // Results refiner for RAG re-ranking
+    single<RagResultsRefiner?> {
+        val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
+        val enhancedMode: Boolean = get(qualifier = named("ragEnhancedMode"))
+        if (ragEnabled && enhancedMode) {
+            RagResultsRefiner(
+                apiKey = get(qualifier = named("openAiApiKey")),
+                httpClient = get(),
+                model = get(qualifier = named("ragLlmModel"))
+            )
+        } else null
+    }
+
+    // Context compressor for RAG
+    single<ContextCompressor?> {
+        val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
+        val enhancedMode: Boolean = get(qualifier = named("ragEnhancedMode"))
+        if (ragEnabled && enhancedMode) {
+            ContextCompressor(
+                apiKey = get(qualifier = named("openAiApiKey")),
+                httpClient = get(),
+                tokenCounter = get(),
+                model = get(qualifier = named("ragLlmModel"))
+            )
+        } else null
+    }
+
+    // RAG search tool component (basic or enhanced based on config)
+    single<RagSearchToolInterface?> {
+        val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
+        val enhancedMode: Boolean = get(qualifier = named("ragEnhancedMode"))
+
+        if (!ragEnabled) return@single null
+
+        val vectorDatabase: VectorDatabase? = get()
+        val embeddingGenerator: EmbeddingGenerator = get()
+
+        if (vectorDatabase == null) return@single null
+
+        // Return enhanced or basic tool based on configuration
+        if (enhancedMode) {
+            EnhancedRagSearchTool(
+                vectorDatabase = vectorDatabase,
+                embeddingGenerator = embeddingGenerator,
+                resultsRefiner = get(),
+                queryExpander = get(),
+                contextCompressor = get(),
+                ragTopK = get(qualifier = named("ragTopK")),
+                ragMinSimilarity = get(qualifier = named("ragMinSimilarity")),
+                finalTopK = get(qualifier = named("ragFinalTopK")),
+                enableQueryExpansion = get(qualifier = named("ragEnableQueryExpansion")),
+                enableReranking = get(qualifier = named("ragEnableReranking")),
+                enableCompression = get(qualifier = named("ragEnableCompression"))
+            )
         } else {
-            null
+            RagSearchTool(
+                vectorDatabase = vectorDatabase,
+                embeddingGenerator = embeddingGenerator,
+                ragTopK = get(qualifier = named("ragTopK")),
+                ragMinSimilarity = get(qualifier = named("ragMinSimilarity"))
+            )
         }
     }
 

@@ -28,7 +28,7 @@ class AiAgent(
     private val responseFormatter: AiAgentResponseFormatter,
     private val tokenCounter: TokenCounter,
     private val toolProvider: ToolProvider,
-    private val ragSearchTool: RagSearchTool?
+    private val ragSearchTool: RagSearchToolInterface?
 ) {
     private val logger = LoggerFactory.getLogger(AiAgent::class.java)
 

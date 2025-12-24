@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory
  */
 class ToolProvider(
     private val mcpManager: McpManager,
-    private val ragSearchTool: RagSearchTool?,
+    private val ragSearchTool: RagSearchToolInterface?,
     private val ragEnabled: Boolean
 ) {
     private val logger = LoggerFactory.getLogger(ToolProvider::class.java)
