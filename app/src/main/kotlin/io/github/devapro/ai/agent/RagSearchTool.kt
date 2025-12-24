@@ -3,12 +3,7 @@ package io.github.devapro.ai.agent
 import io.github.devapro.ai.utils.rag.EmbeddingGenerator
 import io.github.devapro.ai.utils.rag.VectorDatabase
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.putJsonObject
 import org.slf4j.LoggerFactory
 
 /**
@@ -22,33 +17,6 @@ class RagSearchTool(
     private val ragMinSimilarity: Double = 0.7
 ) : RagSearchToolInterface {
     private val logger = LoggerFactory.getLogger(RagSearchTool::class.java)
-
-    /**
-     * Create the search_documents tool definition for OpenAI
-     */
-    override fun createToolDefinition(): OpenAITool {
-        return OpenAITool(
-            function = OpenAIFunction(
-                name = "search_documents",
-                description = "Search through indexed documents using semantic similarity. " +
-                        "Use this tool when you need to find relevant information from the knowledge base. " +
-                        "The search returns the most relevant text chunks that match the query semantically.",
-                parameters = buildJsonObject {
-                    put("type", JsonPrimitive("object"))
-                    putJsonObject("properties") {
-                        putJsonObject("query") {
-                            put("type", JsonPrimitive("string"))
-                            put("description", JsonPrimitive("The search query to find relevant documents. " +
-                                    "Be specific and detailed in your query for better results."))
-                        }
-                    }
-                    putJsonArray("required") {
-                        add(JsonPrimitive("query"))
-                    }
-                }
-            )
-        )
-    }
 
     /**
      * Execute the search_documents tool: query → embedding → similarity search → results

@@ -4,19 +4,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
-/**
- * AI response structure from JSON
- */
-@Serializable
-data class AiResponse(
-    @SerialName("type")
-    val type: String? = "answer",
-    @SerialName("text")
-    val text: String? = null,
-    @SerialName("summary")
-    val summary: String? = null
-)
-
 @Serializable
 data class OpenAIMessage(
     @SerialName("role")

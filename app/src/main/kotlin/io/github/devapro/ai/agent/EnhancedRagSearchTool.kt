@@ -4,12 +4,7 @@ import io.github.devapro.ai.utils.rag.EmbeddingGenerator
 import io.github.devapro.ai.utils.rag.SearchResult
 import io.github.devapro.ai.utils.rag.VectorDatabase
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.putJsonObject
 import org.slf4j.LoggerFactory
 
 /**
@@ -30,33 +25,6 @@ class EnhancedRagSearchTool(
     private val enableCompression: Boolean = true
 ) : RagSearchToolInterface {
     private val logger = LoggerFactory.getLogger(EnhancedRagSearchTool::class.java)
-
-    /**
-     * Create the search_documents tool definition for OpenAI
-     */
-    override fun createToolDefinition(): OpenAITool {
-        return OpenAITool(
-            function = OpenAIFunction(
-                name = "search_documents",
-                description = "Search through indexed documents using advanced semantic search with query expansion and relevance filtering. " +
-                        "Use this tool when you need to find relevant information from the knowledge base. " +
-                        "The search uses multiple strategies to find the most relevant content.",
-                parameters = buildJsonObject {
-                    put("type", JsonPrimitive("object"))
-                    putJsonObject("properties") {
-                        putJsonObject("query") {
-                            put("type", JsonPrimitive("string"))
-                            put("description", JsonPrimitive("The search query to find relevant documents. " +
-                                    "Be specific and detailed for better results."))
-                        }
-                    }
-                    putJsonArray("required") {
-                        add(JsonPrimitive("query"))
-                    }
-                }
-            )
-        )
-    }
 
     /**
      * Execute enhanced search with all improvements

@@ -182,13 +182,10 @@ class AiAgent(
                     logger.info(rawResponse)
                     logger.info("Total response time: ${responseTime}ms")
 
-                    // Parse and format response
-                    val formattedResponse = try {
-                        responseFormatter.parseAndFormatResponse(rawResponse, usage, responseTime, estimatedTokens, historyLength)
-                    } catch (e: Exception) {
-                        logger.warn("Failed to parse AI response as JSON, using raw response: ${e.message}")
-                        rawResponse
-                    }
+                    // Format response with statistics
+                    val formattedResponse = responseFormatter.formatResponse(
+                        rawResponse, usage, responseTime, estimatedTokens, historyLength
+                    )
 
                     // Save messages to history
                     fileRepository.saveUserMessage(userId, userMessage)
