@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory
  * AI Agent component that handles conversations using OpenAI API with MCP tool support
  */
 
-private const val modelName = "gpt-4o-mini"
+private const val modelName = "gpt-4o"
 private const val MAX_TOOL_ITERATIONS = 20
 private const val MAX_MESSAGES_IN_CONTEXT = 10
 
