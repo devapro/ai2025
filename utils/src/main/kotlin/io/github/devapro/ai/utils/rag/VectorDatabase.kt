@@ -66,7 +66,11 @@ class VectorDatabase(
                     it[vector] = json.encodeToString(embedding.vector)
                     it[model] = embedding.model
                     it[chunkIndex] = embedding.chunkIndex
-                    it[metadata] = null
+                    it[metadata] = if (embedding.metadata.isNotEmpty()) {
+                        json.encodeToString(embedding.metadata)
+                    } else {
+                        null
+                    }
                     it[createdAt] = System.currentTimeMillis()
                 }
             }

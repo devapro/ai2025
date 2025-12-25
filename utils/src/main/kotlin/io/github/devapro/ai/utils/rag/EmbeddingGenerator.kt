@@ -16,7 +16,8 @@ data class Embedding(
     val text: String,
     val vector: List<Double>,
     val model: String,
-    val chunkIndex: Int
+    val chunkIndex: Int,
+    val metadata: Map<String, String> = emptyMap()
 )
 
 /**
@@ -140,7 +141,8 @@ class EmbeddingGenerator(
                 text = chunk.text,
                 vector = embeddingData.embedding,
                 model = response.model,
-                chunkIndex = chunk.index
+                chunkIndex = chunk.index,
+                metadata = chunk.metadata
             )
         }
     }
