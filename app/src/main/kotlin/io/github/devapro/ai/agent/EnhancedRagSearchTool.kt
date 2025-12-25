@@ -100,7 +100,23 @@ class EnhancedRagSearchTool(
             logger.info("Step 4: Context Formatting/Compression")
             val finalContext = if (enableCompression) {
                 val chunks = refinedResults.map { it.text }
-                contextCompressor.smartCompress(query, chunks, targetTokens = 1500)
+                val compressed = contextCompressor.smartCompress(query, chunks, targetTokens = 1500)
+
+                // Extract and append sources after compression
+                val sources = refinedResults.mapNotNull { result ->
+                    result.metadata?.get("file")
+                }.distinct()
+
+                buildString {
+                    appendLine(compressed)
+                    if (sources.isNotEmpty()) {
+                        appendLine()
+                        appendLine("Sources used:")
+                        sources.forEach { source ->
+                            appendLine("- $source")
+                        }
+                    }
+                }
             } else {
                 formatResults(refinedResults)
             }
@@ -120,11 +136,21 @@ class EnhancedRagSearchTool(
      * Format results as text (used when compression is disabled)
      */
     private fun formatResults(results: List<SearchResult>): String {
+        // Extract unique sources from results
+        val sources = results.mapNotNull { result ->
+            result.metadata?.get("file")
+        }.distinct()
+
         return buildString {
             appendLine("Found ${results.size} relevant document(s):\n")
 
             results.forEachIndexed { index, result ->
                 appendLine("--- Document ${index + 1} (Similarity: ${"%.3f".format(result.similarity)}) ---")
+
+                // Add source file if available
+                result.metadata?.get("file")?.let { file ->
+                    appendLine("Source: $file")
+                }
 
                 // Add heading context if available
                 result.metadata?.get("heading")?.let { heading ->
@@ -138,6 +164,15 @@ class EnhancedRagSearchTool(
 
             appendLine("---")
             appendLine("Use the information from these documents to answer the user's question.")
+
+            // Add sources summary
+            if (sources.isNotEmpty()) {
+                appendLine()
+                appendLine("Sources used:")
+                sources.forEach { source ->
+                    appendLine("- $source")
+                }
+            }
         }
     }
 
