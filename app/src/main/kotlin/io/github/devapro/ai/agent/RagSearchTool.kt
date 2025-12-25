@@ -49,11 +49,21 @@ class RagSearchTool(
                 return "No relevant documents found for query: \"$query\""
             }
 
+            // Extract unique sources from results
+            val sources = searchResults.mapNotNull { result ->
+                result.metadata?.get("file")
+            }.distinct()
+
             val formattedResults = buildString {
                 appendLine("Found ${searchResults.size} relevant document(s):\n")
 
                 searchResults.forEachIndexed { index, result ->
                     appendLine("--- Document ${index + 1} (Similarity: ${"%.3f".format(result.similarity)}) ---")
+
+                    // Add source file if available
+                    result.metadata?.get("file")?.let { file ->
+                        appendLine("Source: $file")
+                    }
 
                     // Add heading context if available
                     result.metadata?.get("heading")?.let { heading ->
@@ -67,6 +77,15 @@ class RagSearchTool(
 
                 appendLine("---")
                 appendLine("Use the information from these documents to answer the user's question.")
+
+                // Add sources summary
+                if (sources.isNotEmpty()) {
+                    appendLine()
+                    appendLine("Sources used:")
+                    sources.forEach { source ->
+                        appendLine("- $source")
+                    }
+                }
             }
 
             return formattedResults
