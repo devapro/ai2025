@@ -35,16 +35,18 @@ class FindFileTool(
             function = OpenAIFunction(
                 name = "find_file",
                 description = """
-                    Find files in a directory and its subdirectories.
+                    Find files in the project directory and its subdirectories.
                     Supports glob patterns (e.g., *.kt, test*.java, Main.*).
                     Returns relative paths from the search directory.
+                    IMPORTANT: All paths are relative to the project root. Use "." to search from root.
+                    Do NOT include "project-source/" prefix in paths.
                 """.trimIndent(),
                 parameters = buildJsonObject {
         put("type", "object")
         putJsonObject("properties") {
             putJsonObject("path") {
                 put("type", "string")
-                put("description", "Directory path to search in (absolute or relative to working directory)")
+                put("description", "Directory path to search in, relative to project root (use '.' for root directory, or subdirectory like 'src' or 'AndroidRepo/features')")
             }
             putJsonObject("pattern") {
                 put("type", "string")

@@ -47,6 +47,10 @@ val configurationModule = module {
         get<Dotenv>()["USERS_FILE_PATH"] ?: "users.md"
     }
 
+    single(qualifier = named("projectSourceDir")) {
+        get<Dotenv>()["PROJECT_SOURCE_DIR"] ?: "project-source"
+    }
+
     // ========================================
     // MCP Configuration
     // ========================================

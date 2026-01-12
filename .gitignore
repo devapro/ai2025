@@ -51,3 +51,5 @@ users.md
 ### Project Source ###
 project-source/
 doc-source/
+/doc-source-test/
+/embeddings_test.db

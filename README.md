@@ -393,6 +393,7 @@ All components are managed as singletons by Koin DI framework with automatic dep
 - `TELEGRAM_BOT_TOKEN` (required): Your Telegram bot token
 - `PROMPTS_DIR` (optional): Directory for prompt files (default: `promts`)
 - `HISTORY_DIR` (optional): Directory for history files (default: `history`)
+- `PROJECT_SOURCE_DIR` (optional): Directory containing project source code for file tools (default: `project-source`)
 
 ### Conversation History
 

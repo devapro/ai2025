@@ -36,13 +36,15 @@ class FolderStructureTool(
                 description = """
                     Display the structure of a folder showing files and subdirectories in a tree format.
                     Useful for understanding project organization and locating files.
+                    IMPORTANT: All paths are relative to the project root. Use "." to show root structure.
+                    Do NOT include "project-source/" prefix in paths.
                 """.trimIndent(),
                 parameters = buildJsonObject {
                     put("type", "object")
                     putJsonObject("properties") {
                         putJsonObject("path") {
                             put("type", "string")
-                            put("description", "Directory path to display (absolute or relative to working directory)")
+                            put("description", "Directory path relative to project root (use '.' for root directory, or subdirectory like 'src' or 'AndroidRepo/features')")
                         }
                         putJsonObject("maxDepth") {
                             put("type", "integer")

@@ -9,21 +9,23 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 
 /**
- * Tool for reading file contents
+ * Tool for reading file contents from project source code or documentation
  *
  * Supports:
+ * - Two modes: source_code (project-source) and document (doc-source)
  * - Reading entire file or specific line range
  * - Automatic encoding detection (defaults to UTF-8)
  * - Line numbering in output
  * - Size limits to prevent reading huge files
  *
  * Examples:
- * - Read entire file: {"path": "src/Main.kt"}
+ * - Read source code: {"path": "src/Main.kt", "mode": "source_code"}
+ * - Read document: {"path": "User-properties_1558151208.md", "mode": "document"}
  * - Read specific lines: {"path": "README.md", "startLine": 1, "endLine": 10}
- * - Read with line numbers: {"path": "config.json", "includeLineNumbers": true}
  */
 class ReadFileTool(
-    private val workingDirectory: File = File(System.getProperty("user.dir")),
+    private val projectSourceDirectory: File = File(System.getProperty("user.dir")),
+    private val documentSourceDirectory: File = File(System.getProperty("user.dir"), "doc-source"),
     private val maxFileSize: Long = 10 * 1024 * 1024 // 10 MB default limit
 ) : Tool {
 
@@ -34,17 +36,32 @@ class ReadFileTool(
             function = OpenAIFunction(
                 name = "read_file",
                 description = """
-                    Read contents of a file.
-                    Supports reading entire file or specific line range.
-                    Returns file contents with optional line numbers.
+                    Read contents of a file from project source code OR documentation.
+                    Supports two modes:
+                    - 'source_code' (default): Read from project-source folder (for source code files)
+                    - 'document': Read from doc-source folder (for documentation files found via RAG search)
+
+                    Use 'document' mode when you need to read the full content of documentation files
+                    that were mentioned in search_documents results.
+
                     Maximum file size: ${maxFileSize / (1024 * 1024)} MB.
+                    IMPORTANT: Do NOT include folder prefixes (project-source/ or doc-source/) in paths.
                 """.trimIndent(),
                 parameters = buildJsonObject {
         put("type", "object")
         putJsonObject("properties") {
             putJsonObject("path") {
                 put("type", "string")
-                put("description", "File path (absolute or relative to working directory)")
+                put("description", "File path relative to the mode's root folder (e.g., 'AndroidRepo/build.gradle.kts' for source_code or 'User-properties_1558151208.md' for document)")
+            }
+            putJsonObject("mode") {
+                put("type", "string")
+                putJsonArray("enum") {
+                    add("source_code")
+                    add("document")
+                }
+                put("description", "Read mode: 'source_code' for project files (default) or 'document' for documentation files")
+                put("default", "source_code")
             }
             putJsonObject("startLine") {
                 put("type", "integer")
@@ -79,9 +96,15 @@ class ReadFileTool(
         val pathStr = arguments["path"]?.jsonPrimitive?.content
             ?: throw IllegalArgumentException("'path' argument is required")
 
+        val mode = arguments["mode"]?.jsonPrimitive?.content ?: "source_code"
         val startLine = arguments["startLine"]?.jsonPrimitive?.intOrNull
         val endLine = arguments["endLine"]?.jsonPrimitive?.intOrNull
         val includeLineNumbers = arguments["includeLineNumbers"]?.jsonPrimitive?.booleanOrNull ?: true
+
+        // Validate mode
+        if (mode !in listOf("source_code", "document")) {
+            throw IllegalArgumentException("'mode' must be 'source_code' or 'document'")
+        }
 
         // Validate line range
         if (startLine != null && startLine < 1) {
@@ -94,10 +117,10 @@ class ReadFileTool(
             throw IllegalArgumentException("endLine must be >= startLine")
         }
 
-        logger.info("Reading file: path=$pathStr, startLine=$startLine, endLine=$endLine")
+        logger.info("Reading file: path=$pathStr, mode=$mode, startLine=$startLine, endLine=$endLine")
 
-        // Resolve path
-        val file = resolvePath(pathStr)
+        // Resolve path based on mode
+        val file = resolvePath(pathStr, mode)
         if (!file.exists()) {
             return "Error: File does not exist: ${file.absolutePath}"
         }
@@ -162,14 +185,20 @@ class ReadFileTool(
     }
 
     /**
-     * Resolve path relative to working directory or as absolute
+     * Resolve path relative to the appropriate directory based on mode
+     * @param pathStr File path
+     * @param mode Either "source_code" (project-source) or "document" (doc-source)
      */
-    private fun resolvePath(pathStr: String): File {
+    private fun resolvePath(pathStr: String, mode: String): File {
         val path = File(pathStr)
         return if (path.isAbsolute) {
             path
         } else {
-            File(workingDirectory, pathStr).canonicalFile
+            val baseDirectory = when (mode) {
+                "document" -> documentSourceDirectory
+                else -> projectSourceDirectory
+            }
+            File(baseDirectory, pathStr).canonicalFile
         }
     }
 

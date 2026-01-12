@@ -38,9 +38,11 @@ class ExploringTool(
             function = OpenAIFunction(
                 name = "explore_files",
                 description = """
-                    Explore files and generate AI-powered summaries for each file.
+                    Explore files and generate AI-powered summaries for each file in the project.
                     Can process specific files or all files in a folder.
                     Returns a description of what each file contains and its purpose.
+                    IMPORTANT: All paths are relative to the project root.
+                    Do NOT include "project-source/" prefix in paths.
                 """.trimIndent(),
                 parameters = buildJsonObject {
                     put("type", "object")
@@ -50,11 +52,11 @@ class ExploringTool(
                             putJsonObject("items") {
                                 put("type", "string")
                             }
-                            put("description", "List of specific file paths to explore (relative to working directory)")
+                            put("description", "List of specific file paths relative to project root (e.g., ['src/Main.kt', 'build.gradle.kts'])")
                         }
                         putJsonObject("folderPath") {
                             put("type", "string")
-                            put("description", "Folder path to explore all files within (alternative to fileList)")
+                            put("description", "Folder path relative to project root (use '.' for root, or subdirectory like 'src' or 'AndroidRepo/features')")
                         }
                         putJsonObject("recursive") {
                             put("type", "boolean")

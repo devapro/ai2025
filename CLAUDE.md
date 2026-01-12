@@ -36,6 +36,7 @@ The application uses environment variables from a `.env` file (copy from `.env.e
 **Optional:**
 - `PROMPTS_DIR` - Prompt files directory (default: `promts`)
 - `HISTORY_DIR` - Conversation history directory (default: `history`)
+- `PROJECT_SOURCE_DIR` - Project source code directory for file tools (default: `project-source`)
 - `MCP_CONFIG_PATH` - MCP configuration file (default: `mcp-config.json`)
 - `RAG_ENABLED` - Enable RAG document search (default: false)
 - `RAG_DATABASE_PATH` - Vector database path (default: `embeddings.db`)
@@ -50,6 +51,7 @@ The application uses environment variables from a `.env` file (copy from `.env.e
 - `history/` - User conversation history (git-ignored, auto-created)
 - `mcp-config.json` - MCP server configuration (git-ignored)
 - `embeddings.db` - Vector database for RAG (git-ignored)
+- `project-source/` - Project source code (configurable via PROJECT_SOURCE_DIR, used by file tools)
 - `doc-source/` - Documentation folder (writable by agent via DocumentWriterTool)
 
 ## Project Architecture

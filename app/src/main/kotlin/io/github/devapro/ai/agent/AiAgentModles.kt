@@ -107,3 +107,20 @@ data class TokenUsage(
     @SerialName("total_tokens")
     val totalTokens: Int
 )
+
+// OpenAI Error Response
+@Serializable
+data class OpenAIErrorResponse(
+    @SerialName("error")
+    val error: OpenAIError
+)
+
+@Serializable
+data class OpenAIError(
+    @SerialName("message")
+    val message: String,
+    @SerialName("type")
+    val type: String? = null,
+    @SerialName("code")
+    val code: String? = null
+)

@@ -85,11 +85,31 @@ class AiAgent(
             )
 
             // Call OpenAI API
-            val response = httpClient.post("https://api.openai.com/v1/chat/completions") {
+            val httpResponse = httpClient.post("https://api.openai.com/v1/chat/completions") {
                 header("Authorization", "Bearer $apiKey")
                 contentType(ContentType.Application.Json)
                 setBody(request)
-            }.body<OpenAIResponse>()
+            }
+
+            // Check if the response is an error
+            if (!httpResponse.status.isSuccess()) {
+                val errorResponse = try {
+                    httpResponse.body<OpenAIErrorResponse>()
+                } catch (e: Exception) {
+                    logger.error("Failed to parse error response: ${e.message}")
+                    return "Sorry, I encountered an API error. Please try again later."
+                }
+
+                logger.error("OpenAI API error: ${errorResponse.error.message} (type: ${errorResponse.error.type}, code: ${errorResponse.error.code})")
+                return "Sorry, I encountered an API error: ${errorResponse.error.message}"
+            }
+
+            val response = try {
+                httpResponse.body<OpenAIResponse>()
+            } catch (e: Exception) {
+                logger.error("Failed to parse OpenAI response: ${e.message}", e)
+                return "Sorry, I couldn't parse the AI response. Please try again."
+            }
 
             val choice = response.choices.firstOrNull()
             if (choice == null) {

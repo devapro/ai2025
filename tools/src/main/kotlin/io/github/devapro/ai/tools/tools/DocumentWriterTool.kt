@@ -47,12 +47,10 @@ class DocumentWriterTool(
                         }
                         putJsonObject("mode") {
                             put("type", "string")
-                            putJsonObject("enum") {
-                                putJsonArray("values") {
-                                    add("create")
-                                    add("overwrite")
-                                    add("append")
-                                }
+                            putJsonArray("enum") {
+                                add("create")
+                                add("overwrite")
+                                add("append")
                             }
                             put("description", """
                                 Write mode:

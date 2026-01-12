@@ -8,6 +8,7 @@ import io.github.devapro.ai.agent.ToolProvider
 import io.github.devapro.ai.bot.TelegramBot
 import io.github.devapro.ai.tools.rag.RagSearchToolInterface
 import io.github.devapro.ai.tools.Tool
+import io.github.devapro.ai.tools.tools.CodeSearchTool
 import io.github.devapro.ai.tools.tools.DocumentWriterTool
 import io.github.devapro.ai.tools.tools.ExploringTool
 import io.github.devapro.ai.tools.tools.FindFileTool
@@ -207,20 +208,30 @@ val appModule = module {
         val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
         val tools = mutableListOf<Tool>()
 
+        // Project source directory - root for all file operations
+        val projectSourcePath: String = get(qualifier = named("projectSourceDir"))
+        val projectSourceDir = java.io.File(System.getProperty("user.dir"), projectSourcePath)
+
         // Add RAG search tool if enabled
         if (ragEnabled) {
             tools.add(get<RagSearchToolInterface>())
         }
 
-        // Add file tools (always available)
-        tools.add(FindFileTool())
-        tools.add(ReadFileTool())
-        tools.add(FolderStructureTool())
+        // Add file tools (always available) - all use project-source as working directory
+        val docSourceDir = java.io.File(System.getProperty("user.dir"), "doc-source")
+        tools.add(FindFileTool(workingDirectory = projectSourceDir))
+        tools.add(ReadFileTool(
+            projectSourceDirectory = projectSourceDir,
+            documentSourceDirectory = docSourceDir
+        ))
+        tools.add(CodeSearchTool(workingDirectory = projectSourceDir))
+        tools.add(FolderStructureTool(workingDirectory = projectSourceDir))
         tools.add(ExploringTool(
             apiKey = get(qualifier = named("openAiApiKey")),
-            httpClient = get()
+            httpClient = get(),
+            workingDirectory = projectSourceDir
         ))
-        tools.add(DocumentWriterTool())
+        tools.add(DocumentWriterTool())  // Uses doc-source, not project-source
 
         tools
     }

@@ -1,5 +1,6 @@
 package io.github.devapro.ai.tools
 
+import io.github.devapro.ai.tools.tools.CodeSearchTool
 import io.github.devapro.ai.tools.tools.FindFileTool
 import io.github.devapro.ai.tools.tools.ReadFileTool
 import org.slf4j.LoggerFactory
@@ -14,6 +15,7 @@ import java.io.File
  * Available Tools:
  * - find_file: Search for files in directories with glob patterns
  * - read_file: Read file contents with optional line range
+ * - search_code: Search for text patterns across source code
  *
  * Usage:
  * 1. Direct execution:
@@ -38,12 +40,17 @@ fun main() {
     try {
         // Get working directory from system property
         val workingDir = File(System.getProperty("user.dir"))
+        val docSourceDir = File(workingDir, "doc-source")
         logger.info("Working directory: ${workingDir.absolutePath}")
 
         // Initialize tools
         val tools = listOf(
             FindFileTool(workingDirectory = workingDir),
-            ReadFileTool(workingDirectory = workingDir)
+            ReadFileTool(
+                projectSourceDirectory = workingDir,
+                documentSourceDirectory = docSourceDir
+            ),
+            CodeSearchTool(workingDirectory = workingDir)
         )
 
         // Create and start MCP server
