@@ -16,6 +16,7 @@ import io.github.devapro.ai.tools.tools.FolderStructureTool
 import io.github.devapro.ai.tools.tools.ReadFileTool
 import io.github.devapro.ai.tools.rag.ContextCompressor
 import io.github.devapro.ai.tools.rag.EnhancedRagSearchTool
+import io.github.devapro.ai.tools.rag.HybridSearchTool
 import io.github.devapro.ai.tools.rag.QueryExpander
 import io.github.devapro.ai.tools.rag.RagResultsRefiner
 import io.github.devapro.ai.tools.rag.RagSearchTool
@@ -171,36 +172,19 @@ val appModule = module {
         )
     }
 
-    // RAG search tool component (basic or enhanced based on config)
+    // RAG search tool component (hybrid search - combines vector + text matching)
     single<RagSearchToolInterface> {
-        val enhancedMode: Boolean = get(qualifier = named("ragEnhancedMode"))
-
         val vectorDatabase: VectorDatabase = get()
         val embeddingGenerator: EmbeddingGenerator = get()
 
-        // Return enhanced or basic tool based on configuration
-        if (enhancedMode) {
-            EnhancedRagSearchTool(
-                vectorDatabase = vectorDatabase,
-                embeddingGenerator = embeddingGenerator,
-                resultsRefiner = get(),
-                queryExpander = get(),
-                contextCompressor = get(),
-                ragTopK = get(qualifier = named("ragTopK")),
-                ragMinSimilarity = get(qualifier = named("ragMinSimilarity")),
-                finalTopK = get(qualifier = named("ragFinalTopK")),
-                enableQueryExpansion = get(qualifier = named("ragEnableQueryExpansion")),
-                enableReranking = get(qualifier = named("ragEnableReranking")),
-                enableCompression = get(qualifier = named("ragEnableCompression"))
-            )
-        } else {
-            RagSearchTool(
-                vectorDatabase = vectorDatabase,
-                embeddingGenerator = embeddingGenerator,
-                ragTopK = get(qualifier = named("ragTopK")),
-                ragMinSimilarity = get(qualifier = named("ragMinSimilarity"))
-            )
-        }
+        // Use hybrid search by default (best of both worlds: semantic + keyword)
+        HybridSearchTool(
+            vectorDatabase = vectorDatabase,
+            embeddingGenerator = embeddingGenerator,
+            ragTopK = get(qualifier = named("ragTopK")),
+            ragMinSimilarity = 0.5,  // Lower threshold since we have text matching fallback
+            enableTextSearch = true  // Enable exact text matching
+        )
     }
 
     // Internal tools (integrated in code, not via external MCP)
