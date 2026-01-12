@@ -4,21 +4,27 @@ import io.github.devapro.ai.AppShutDownManager
 import io.github.devapro.ai.agent.AiAgent
 import io.github.devapro.ai.agent.AiAgentConversationSummarizer
 import io.github.devapro.ai.agent.AiAgentResponseFormatter
-import io.github.devapro.ai.agent.ContextCompressor
-import io.github.devapro.ai.agent.EnhancedRagSearchTool
-import io.github.devapro.ai.agent.QueryExpander
-import io.github.devapro.ai.agent.RagResultsRefiner
-import io.github.devapro.ai.agent.RagSearchTool
-import io.github.devapro.ai.agent.RagSearchToolInterface
-import io.github.devapro.ai.agent.TokenCounter
 import io.github.devapro.ai.agent.ToolProvider
 import io.github.devapro.ai.bot.TelegramBot
+import io.github.devapro.ai.tools.rag.RagSearchToolInterface
+import io.github.devapro.ai.tools.Tool
+import io.github.devapro.ai.tools.tools.DocumentWriterTool
+import io.github.devapro.ai.tools.tools.ExploringTool
+import io.github.devapro.ai.tools.tools.FindFileTool
+import io.github.devapro.ai.tools.tools.FolderStructureTool
+import io.github.devapro.ai.tools.tools.ReadFileTool
+import io.github.devapro.ai.tools.rag.ContextCompressor
+import io.github.devapro.ai.tools.rag.EnhancedRagSearchTool
+import io.github.devapro.ai.tools.rag.QueryExpander
+import io.github.devapro.ai.tools.rag.RagResultsRefiner
+import io.github.devapro.ai.tools.rag.RagSearchTool
+import io.github.devapro.ai.tools.rag.TokenCounter
 import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.mcp.config.McpConfigLoader
 import io.github.devapro.ai.repository.FileRepository
 import io.github.devapro.ai.scheduler.DailySummaryScheduler
-import io.github.devapro.ai.utils.rag.EmbeddingGenerator
-import io.github.devapro.ai.utils.rag.VectorDatabase
+import io.github.devapro.ai.embeds.rag.EmbeddingGenerator
+import io.github.devapro.ai.embeds.rag.VectorDatabase
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -196,16 +202,38 @@ val appModule = module {
         }
     }
 
+    // Internal tools (integrated in code, not via external MCP)
+    single {
+        val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
+        val tools = mutableListOf<Tool>()
+
+        // Add RAG search tool if enabled
+        if (ragEnabled) {
+            tools.add(get<RagSearchToolInterface>())
+        }
+
+        // Add file tools (always available)
+        tools.add(FindFileTool())
+        tools.add(ReadFileTool())
+        tools.add(FolderStructureTool())
+        tools.add(ExploringTool(
+            apiKey = get(qualifier = named("openAiApiKey")),
+            httpClient = get()
+        ))
+        tools.add(DocumentWriterTool())
+
+        tools
+    }
+
     // Tool provider component
     single {
         ToolProvider(
-            mcpManager = get(),
-            ragSearchTool = get(),
-            ragEnabled = get(qualifier = named("ragEnabled"))
+            internalTools = get(),
+            mcpManager = get()
         )
     }
 
-    // Agent layer (now with MCP and RAG support)
+    // Agent layer (now with MCP and internal tools support)
     single {
         AiAgent(
             apiKey = get(qualifier = named("openAiApiKey")),
@@ -215,8 +243,7 @@ val appModule = module {
             conversationSummarizer = get(),
             responseFormatter = get(),
             tokenCounter = get(),
-            toolProvider = get(),
-            ragSearchTool = get()
+            toolProvider = get()
         )
     }
 

@@ -12,7 +12,8 @@ plugins {
 
 dependencies {
     // Project dependencies
-    implementation(project(":utils"))
+    implementation(project(":utils-embeds"))
+    implementation(project(":tools"))
 
     // Kotlinx ecosystem
     implementation(libs.bundles.kotlinxEcosystem)

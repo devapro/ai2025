@@ -2,8 +2,8 @@ package io.github.devapro.ai.agent
 
 import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.repository.FileRepository
-import io.github.devapro.ai.utils.rag.EmbeddingGenerator
-import io.github.devapro.ai.utils.rag.VectorDatabase
+import io.github.devapro.ai.tools.rag.SimpleMessage
+import io.github.devapro.ai.tools.rag.TokenCounter
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -27,8 +27,7 @@ class AiAgent(
     private val conversationSummarizer: AiAgentConversationSummarizer,
     private val responseFormatter: AiAgentResponseFormatter,
     private val tokenCounter: TokenCounter,
-    private val toolProvider: ToolProvider,
-    private val ragSearchTool: RagSearchToolInterface
+    private val toolProvider: ToolProvider
 ) {
     private val logger = LoggerFactory.getLogger(AiAgent::class.java)
 
@@ -71,7 +70,9 @@ class AiAgent(
             logger.info("Tool calling iteration $iteration")
 
             // Count estimated tokens
-            val estimatedTokens = tokenCounter.countTokens(messages)
+            val estimatedTokens = tokenCounter.countTokens(messages.map {
+                SimpleMessage(role = it.role, content = it.content)
+            })
             logger.info("Estimated prompt tokens: $estimatedTokens")
 
             // Create request
@@ -137,14 +138,16 @@ class AiAgent(
                             null
                         }
 
-                        // Execute tool: built-in or MCP
-                        val resultText = when (toolName) {
-                            "search_documents" -> {
-                                // Built-in RAG search tool
-                                ragSearchTool.executeSearch(argsObject)
-                            }
-                            else -> {
-                                // MCP tool
+                        // Execute tool: check if internal tool first, otherwise MCP
+                        val resultText = try {
+                            val internalTool = toolProvider.getInternalTool(toolName)
+                            if (internalTool != null) {
+                                // Internal tool (RAG, file tools, etc.)
+                                logger.info("Executing internal tool: $toolName")
+                                internalTool.execute(argsObject)
+                            } else {
+                                // External MCP tool
+                                logger.info("Executing external MCP tool: $toolName")
                                 val toolResult = mcpManager.callTool(toolName, argsObject)
 
                                 // Format tool result as text content
@@ -157,6 +160,9 @@ class AiAgent(
                                     }
                                 }
                             }
+                        } catch (e: Exception) {
+                            logger.error("Error executing tool $toolName: ${e.message}", e)
+                            "Error executing tool: ${e.message}"
                         }
 
                         logger.info("Tool $toolName result: ${resultText.take(200)}...")

@@ -50,6 +50,7 @@ The application uses environment variables from a `.env` file (copy from `.env.e
 - `history/` - User conversation history (git-ignored, auto-created)
 - `mcp-config.json` - MCP server configuration (git-ignored)
 - `embeddings.db` - Vector database for RAG (git-ignored)
+- `doc-source/` - Documentation folder (writable by agent via DocumentWriterTool)
 
 ## Project Architecture
 
@@ -58,9 +59,13 @@ AI Assistant Telegram Bot with modular architecture:
 **Module structure:**
 - `app/` - Main application module
   - Entry point: `io.github.devapro.ai.AppKt`
-  - Depends on `utils` module
-- `utils/` - RAG components and utilities
-  - Entry point: `io.github.devapro.ai.utils.UtilAppKt`
+  - Depends on `tools` and `utils-embeds` modules
+- `tools/` - Internal tools module
+  - Built-in tools integrated directly in code (not external MCP)
+  - File operations, code exploration, documentation writing
+  - RAG search tools
+- `utils-embeds/` - RAG components and utilities
+  - Entry point: `io.github.devapro.ai.embeds.UtilAppKt`
   - Standalone document indexing application
 - `buildSrc/` - Convention plugins for shared build logic
   - Java 21 toolchain, JUnit Platform, test logging
@@ -68,10 +73,15 @@ AI Assistant Telegram Bot with modular architecture:
 **App module components:**
 - `di/AppDi.kt` - Koin dependency injection configuration
 - `bot/TelegramBot.kt` - Telegram API integration, commands (/start, /help, /clear)
-- `agent/AiAgent.kt` - OpenAI API integration with MCP and RAG support
+- `agent/AiAgent.kt` - OpenAI API integration with internal tools and MCP support
   - Function calling for tool execution
   - Multi-turn conversations (max 20 iterations)
   - Response formatting with markdown and statistics
+  - Routes tool calls to internal or external (MCP) tools
+- `agent/ToolProvider.kt` - Unified tool provider
+  - Aggregates internal tools (from tools module) and external tools (from MCP)
+  - Converts both to OpenAI function format
+  - Routes tool calls to appropriate handler
 - `mcp/` - Model Context Protocol integration
   - Multiple transports: Stdio (npx/python), SSE (HTTP), HttpTransport (MCP SDK)
   - Multi-server orchestrator with parallel initialization
@@ -80,7 +90,18 @@ AI Assistant Telegram Bot with modular architecture:
 - `repository/FileRepository.kt` - Prompts and history management
 - `scheduler/DailySummaryScheduler.kt` - Daily conversation summaries
 
-**Utils module components:**
+**Tools module components:**
+- `Tool.kt` - Interface that all tools implement (createToolDefinition, execute)
+- `impl/FindFileTool.kt` - File search with glob patterns
+- `impl/ReadFileTool.kt` - File reading with optional line ranges
+- `impl/FolderStructureTool.kt` - Display directory tree structure
+- `impl/ExploringTool.kt` - AI-powered file summaries using GPT-4o-mini
+- `impl/DocumentWriterTool.kt` - Create/modify documentation in doc-source folder
+- `rag/RagSearchTool.kt` - Basic RAG semantic search
+- `rag/EnhancedRagSearchTool.kt` - Advanced RAG with query expansion and re-ranking
+- `rag/TokenCounter.kt`, `rag/QueryExpander.kt`, `rag/RagResultsRefiner.kt`, `rag/ContextCompressor.kt` - RAG support components
+
+**Utils-embeds module components:**
 - `rag/TextChunker.kt` - Smart text chunking (sentence-first + Markdown-aware)
 - `rag/MarkdownParser.kt` - Markdown structure parsing
 - `rag/EmbeddingGenerator.kt` - Vector embeddings via LM Studio
@@ -120,7 +141,11 @@ AI Assistant Telegram Bot with modular architecture:
 1. **Startup** - Koin initializes all components from `.env`, starts bot polling
 2. **Message handling** - TelegramBot receives message → AiAgent processes → Response sent
 3. **AI processing** - Load history → Build messages → Call OpenAI (with tools if available) → Format response → Save history
-4. **Tool calling** - If OpenAI requests tool use → Execute via McpManager or RAG → Return result → Continue conversation
+4. **Tool calling** - If OpenAI requests tool use:
+   - ToolProvider checks if tool is internal (tools module) or external (MCP)
+   - Internal tools: Execute directly via Tool.execute()
+   - External tools: Route to McpManager
+   - Return result → Continue conversation (up to 20 iterations)
 
 ## MCP Integration
 
@@ -180,6 +205,94 @@ Bot: Based on the documentation, authentication is handled using...
 
 See `RAG_IMPLEMENTATION.md` for detailed architecture and `MARKDOWN_CHUNKING.md` for chunking strategies.
 
+## Internal Tools
+
+The application includes built-in tools (integrated in code, not via external MCP) that are always available to the AI agent.
+
+**Tool Architecture:**
+- All tools implement the `Tool` interface with `createToolDefinition()` and `execute()` methods
+- Tools are registered in `AppDi.kt` and provided to the agent via `ToolProvider`
+- `ToolProvider` aggregates both internal tools and external MCP tools
+- AI agent routes tool calls to the appropriate handler (internal or external)
+
+**Available Internal Tools:**
+
+### File Operations
+
+**find_file** (`FindFileTool.kt`)
+- Search for files using glob patterns (*.kt, **/*.java, etc.)
+- Filter by path, extension, max depth, max results
+- Returns list of matching file paths sorted by modification time
+- Example: `find_file(path="src", pattern="*Service.kt", maxDepth=3)`
+
+**read_file** (`ReadFileTool.kt`)
+- Read file contents with optional line ranges
+- Supports absolute and relative paths
+- Line-numbered output for code references
+- 10MB file size limit for safety
+- Example: `read_file(path="src/Main.kt", startLine=10, endLine=50)`
+
+**folder_structure** (`FolderStructureTool.kt`)
+- Display directory tree with visual connectors (├──, └──)
+- Configurable: maxDepth, showFiles, showHidden, showSizes, maxItems
+- Shows summary statistics (dir count, file count, total size)
+- Sorted display (directories first, then files, alphabetically)
+- Example: `folder_structure(path="src", maxDepth=2, showFiles=true)`
+
+### Code Exploration
+
+**explore_files** (`ExploringTool.kt`)
+- Generate AI-powered summaries for multiple files
+- Two modes: specific file list or entire folder (recursive optional)
+- Uses GPT-4o-mini for cost-effective summaries (1-3 sentences per file)
+- Filter by file extensions, control depth
+- Limits: 20 files per request, 50KB per file, 10K chars to LLM
+- Example: `explore_files(folderPath="src/agent", recursive=true, fileExtensions=["kt"])`
+
+### Documentation
+
+**write_documentation** (`DocumentWriterTool.kt`)
+- Create or modify documentation files in `doc-source` folder only
+- Three modes: create (fails if exists), overwrite (replace), append (add to end)
+- Automatic parent directory creation
+- Security: path traversal prevention, restricted to doc-source
+- Example: `write_documentation(filePath="api/auth.md", content="# Auth\n...", mode="create")`
+
+### Semantic Search
+
+**search_documents** (`RagSearchTool.kt` or `EnhancedRagSearchTool.kt`)
+- Semantic search through indexed documentation
+- Basic mode: vector similarity search
+- Enhanced mode: query expansion, re-ranking, context compression
+- Requires RAG setup (LM Studio + indexed embeddings)
+- Configurable: topK, minSimilarity
+- Example: `search_documents(query="authentication implementation", topK=5)`
+
+**Tool Registration Pattern:**
+```kotlin
+// In AppDi.kt
+single {
+    val tools = mutableListOf<Tool>()
+
+    // Add RAG if enabled
+    if (ragEnabled) {
+        tools.add(get<RagSearchToolInterface>())
+    }
+
+    // Add file tools (always available)
+    tools.add(FindFileTool())
+    tools.add(ReadFileTool())
+    tools.add(FolderStructureTool())
+    tools.add(ExploringTool(apiKey = get(...), httpClient = get()))
+    tools.add(DocumentWriterTool())
+
+    tools
+}
+```
+
+**Usage in Agent:**
+The AI automatically selects and uses appropriate tools based on user queries. No configuration needed - tools are discovered via OpenAI function calling.
+
 ## Development Notes
 
 **Adding dependencies:**
@@ -187,10 +300,15 @@ See `RAG_IMPLEMENTATION.md` for detailed architecture and `MARKDOWN_CHUNKING.md`
 - Reference with `libs.` notation (e.g., `implementation(libs.ktor.client.core)`)
 
 **File organization:**
-- Entry points: `app/src/main/kotlin/io/github/devapro/ai/App.kt`, `utils/src/main/kotlin/io/github/devapro/ai/utils/UtilApp.kt`
+- Entry points:
+  - App: `app/src/main/kotlin/io/github/devapro/ai/App.kt`
+  - Utils: `utils-embeds/src/main/kotlin/io/github/devapro/ai/embeds/UtilApp.kt`
 - DI config: `app/src/main/kotlin/io/github/devapro/ai/di/AppDi.kt`
-- Components in packages: `agent/`, `bot/`, `mcp/`, `repository/`, `scheduler/`
-- RAG components: `utils/src/main/kotlin/io/github/devapro/ai/utils/rag/`
+- App components: `agent/`, `bot/`, `mcp/`, `repository/`, `scheduler/`
+- Tools module: `tools/src/main/kotlin/io/github/devapro/ai/tools/`
+  - Tool implementations: `impl/FindFileTool.kt`, `impl/ReadFileTool.kt`, etc.
+  - RAG tools: `rag/RagSearchTool.kt`, `rag/EnhancedRagSearchTool.kt`, etc.
+- Utils-embeds: `utils-embeds/src/main/kotlin/io/github/devapro/ai/embeds/rag/`
 - Tests mirror source structure
 
 **Coding standards:**

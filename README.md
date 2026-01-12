@@ -1,8 +1,42 @@
 # AI Assistant Telegram Bot
 
-An AI-powered Telegram bot that provides helpful answers to user questions. The bot delivers clear, accurate responses with detailed performance statistics for every interaction.
+Multi-purpose AI assistant Telegram bot with two modes:
+1. **Project Code Assistant** (default) - Navigate and understand codebases with documentation search and code exploration
+2. **General Assistant** - Powered by OpenAI with MCP tools and RAG support
 
-## Features
+## Modes
+
+### 🔍 Project Code Assistant Mode (Default)
+
+The bot is configured as a **Project Code Assistant** that helps developers explore and understand codebases:
+
+**Capabilities:**
+- 📖 Search project documentation using RAG
+- 🔎 Find source files by pattern (`find_file` tool)
+- 📄 Read and analyze source code (`read_file` tool)
+- 🏗️ Explain feature implementations
+- 💡 Show real code examples from the project
+- 🔗 Trace logic across multiple files
+
+**Setup:**
+1. Place your project in `project-source/` directory
+2. Index documentation: `./gradlew :utils-embeds:run --args="project-source/docs embeddings.db"`
+3. Set `RAG_ENABLED=true` in `.env`
+4. Ask questions about your codebase!
+
+**Example Questions:**
+- "Where is authentication implemented?"
+- "How does the order processing work?"
+- "Show me examples of using the cache service"
+- "Explain the database migration logic"
+
+See [PROJECT_ASSISTANT_SETUP.md](PROJECT_ASSISTANT_SETUP.md) for complete setup guide.
+
+### 💬 General Assistant Mode
+
+Can be reconfigured as a general-purpose assistant by updating prompts in `promts/` directory.
+
+## Core Features
 
 - **General AI Assistant**: Answers questions on a wide range of topics using OpenAI's GPT models
 - **Clear Explanations**: Provides easy-to-understand answers with examples and context
@@ -39,7 +73,19 @@ Ai1/
 │       ├── di/                   # Dependency injection
 │       │   └── AppDi.kt
 │       └── App.kt                # Application entry point
-├── utils/                        # Shared utilities module
+├── tools/                        # Internal tools module
+│   └── src/main/kotlin/io/github/devapro/ai/tools/
+│       ├── impl/                 # Tool implementations
+│       │   ├── FindFileTool.kt
+│       │   ├── ReadFileTool.kt
+│       │   ├── FolderStructureTool.kt
+│       │   ├── ExploringTool.kt
+│       │   └── DocumentWriterTool.kt
+│       ├── rag/                  # RAG search tools
+│       │   ├── RagSearchTool.kt
+│       │   └── EnhancedRagSearchTool.kt
+│       └── Tool.kt               # Tool interface
+├── utils-embeds/                 # RAG utilities and embeddings
 ├── buildSrc/                     # Gradle convention plugins
 ├── docker/                       # Docker configuration
 │   ├── Dockerfile
@@ -47,6 +93,7 @@ Ai1/
 ├── promts/                       # Prompt templates (markdown files)
 │   ├── system.md                 # System prompt for AI agent
 │   └── assistant.md              # Assistant greeting
+├── doc-source/                   # Documentation folder (writable by agent)
 └── history/                      # User conversation history (git-ignored)
 ```
 
@@ -156,6 +203,57 @@ It's an excellent choice for beginners and professionals alike.
 • Tokens used: 156 (prompt: 89, completion: 67)
 ```
 
+## Internal Tools
+
+The bot comes with several built-in tools that the AI agent can use automatically:
+
+### File Tools
+
+**find_file** - Search for files using glob patterns
+- Search by filename pattern (`*.kt`, `*Service.java`)
+- Filter by directory and extension
+- Configurable search depth and result limits
+- Example: "Find all Kotlin test files in the project"
+
+**read_file** - Read file contents with optional line ranges
+- Read entire files or specific line ranges
+- Line-numbered output for easy reference
+- 10MB file size limit for safety
+- Example: "Show me the contents of Main.kt"
+
+**folder_structure** - Display directory tree structure
+- Tree-style visualization with visual connectors
+- Configurable depth and file display options
+- Show/hide hidden files, file sizes
+- Summary statistics (file count, directory count, total size)
+- Example: "Show me the structure of the src folder"
+
+**explore_files** - AI-powered file summaries
+- Generate concise descriptions for multiple files at once
+- Process specific files or entire folders
+- Uses GPT-4o-mini for cost-effective summaries
+- Filter by file extensions, control recursion depth
+- Example: "Explore all Kotlin files in the agent package and summarize what they do"
+
+**write_documentation** - Create and modify documentation
+- Write new documentation files in `doc-source` folder
+- Update existing documentation
+- Append to existing files (useful for changelogs)
+- Three modes: create, overwrite, append
+- Automatic directory creation
+- Security: Restricted to doc-source folder only
+- Example: "Create documentation explaining how the RAG system works"
+
+### RAG Tool
+
+**search_documents** (optional, requires RAG setup)
+- Semantic search through indexed project documentation
+- Uses local embeddings via LM Studio (no API costs)
+- Configurable similarity threshold and result count
+- Example: "Search the documentation for authentication implementation details"
+
+These tools work seamlessly with external MCP tools, giving the AI agent a comprehensive toolkit for code exploration and documentation tasks.
+
 ## MCP Server Integration
 
 This bot supports the **Model Context Protocol (MCP)**, enabling the AI agent to use external tools and data sources automatically.
@@ -254,7 +352,13 @@ The application follows a modular architecture with clear separation of concerns
 - **DI Layer** (`di/`): Koin dependency injection configuration in `AppDi.kt`
 - **Bot Component** (`bot/`): Handles Telegram API interactions and user commands
 - **Agent Component** (`agent/`): Manages AI conversations using OpenAI API directly via Ktor
+- **Tools Module** (`tools/`): Built-in tools for file operations, code exploration, and documentation
+  - File tools: find, read, folder structure
+  - Exploring tool: AI-powered file summaries
+  - Documentation writer: Create/modify docs in doc-source
+  - RAG tools: Semantic document search
 - **Repository Component** (`repository/`): Handles file-based storage for prompts and history
+- **Utils Module** (`utils-embeds/`): RAG embeddings and vector database utilities
 
 All components are managed as singletons by Koin DI framework with automatic dependency resolution.
 

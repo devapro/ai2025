@@ -47,3 +47,7 @@ history/
 mcp-config.json
 users.md
 /embeddings.db
+
+### Project Source ###
+project-source/
+doc-source/

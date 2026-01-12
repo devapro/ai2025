@@ -1,43 +1,80 @@
-👋 Hello! I'm your AI assistant, here to help with whatever you need.
+👋 **Hello! I'm your Project Code Assistant.**
 
-I can assist you with a wide range of topics and tasks:
+I'm here to help you understand and navigate your codebase. I can analyze documentation, explore source code, and explain how features are implemented.
 
-*Knowledge & Information:*
-• 📚 Answer questions on any topic
-• 🔍 Explain complex concepts in simple terms
-• 🎓 Help with learning and understanding
-• 💡 Provide ideas and creative suggestions
+## What I Can Help With
 
-*Problem-Solving:*
-• 🛠️ Help troubleshoot issues
-• 📊 Analyze situations and offer insights
-• ✅ Guide you through step-by-step processes
-• 💭 Offer advice and recommendations
+**🔍 Feature Discovery:**
+• Find where specific features are implemented
+• Locate relevant modules and components
+• Identify related files and dependencies
 
-*Practical Help:*
-• ✍️ Assist with writing and editing
-• 🗂️ Help organize information
-• 🎯 Plan and strategize
-• 🌐 Explain technical topics
+**📖 Logic Investigation:**
+• Explain how features work step-by-step
+• Trace code execution flows
+• Connect documentation to actual implementation
 
-*Enhanced Capabilities:*
-When appropriate tools are available, I can also:
-• 🔧 Perform system operations
-• 📁 Work with files and data
-• 🌤️ Access current information
-• 🤖 Execute automated tasks
+**💡 Code Examples:**
+• Show real examples from your codebase
+• Find usage patterns in tests
+• Demonstrate how APIs are used
 
-*How to get the most from our conversation:*
-• Ask questions naturally - I'm here to help!
-• Be specific when you need detailed information
-• Ask follow-up questions if you need clarification
-• Use `/clear` to start a fresh conversation
+**🏗️ Architecture Understanding:**
+• Explain module organization
+• Show how components interact
+• Identify design patterns used
 
-*Example questions you can ask:*
-• "Explain how photosynthesis works"
-• "What are the best practices for time management?"
-• "Help me understand quantum computing"
-• "How can I improve my writing skills?"
-• "What's the difference between HTTP and HTTPS?"
+## How to Ask Questions
 
-I'm ready to help with whatever you need - just ask! What would you like to know or work on today?
+**Finding Features:**
+• "Where is user authentication implemented?"
+• "How does the payment processing work?"
+• "Find the notification service implementation"
+
+**Understanding Logic:**
+• "Explain how the login flow works"
+• "How does data validation happen?"
+• "What happens when a user creates an order?"
+
+**Getting Examples:**
+• "Show me how to use the cache service"
+• "Give me an example of error handling"
+• "How do I call the user API?"
+
+**Checking Implementation:**
+• "How is rate limiting implemented?"
+• "Where is the database configured?"
+• "What logging framework is used?"
+
+## My Tools
+
+I have access to:
+• **search_documents** - Search project documentation and specs
+• **find_file** - Locate source files by pattern
+• **read_file** - Read and analyze source code
+
+## Source Code Location
+
+Your project source is in: `project-source/`
+
+I'll search through this directory to find implementations, read code, and provide accurate answers based on your actual codebase.
+
+## How I Work
+
+1. **Search documentation first** to understand the feature design
+2. **Find relevant files** using patterns and names
+3. **Read the source code** to see actual implementation
+4. **Explain with examples** using real code from your project
+5. **Cite sources** so you know where information comes from
+
+**Every answer is specific to YOUR codebase** - I don't guess or provide generic solutions!
+
+---
+
+**Ready to explore your codebase!** What would you like to know?
+
+*Examples to get started:*
+• "What features are documented?"
+• "Show me the project structure"
+• "How does [your feature] work?"
+• "Find the [component name] implementation"
