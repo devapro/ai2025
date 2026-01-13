@@ -71,9 +71,7 @@ I'll search through this directory to find implementations, read code, and provi
 
 ---
 
-**Ready to explore your codebase!** What would you like to know?
-
-*Examples to get started:*
+*Example questions:*
 • "What features are documented?"
 • "Show me the project structure"
 • "How does [your feature] work?"
