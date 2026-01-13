@@ -69,12 +69,17 @@ class McpServer(
         try {
             when (request.method) {
                 "initialize" -> handleInitialize(request)
-                "initialized" -> handleInitialized(request)
+                "initialized", "notifications/initialized" -> handleInitialized(request)
                 "tools/list" -> handleToolsList(request)
                 "tools/call" -> handleToolCall(request)
                 else -> {
-                    logger.warn("Unknown method: ${request.method}")
-                    sendError(request.id, ErrorCodes.METHOD_NOT_FOUND, "Method not found: ${request.method}")
+                    // Don't send error for notifications (id == null)
+                    if (request.id != null) {
+                        logger.warn("Unknown method: ${request.method}")
+                        sendError(request.id, ErrorCodes.METHOD_NOT_FOUND, "Method not found: ${request.method}")
+                    } else {
+                        logger.debug("Ignoring unknown notification: ${request.method}")
+                    }
                 }
             }
         } catch (e: Exception) {

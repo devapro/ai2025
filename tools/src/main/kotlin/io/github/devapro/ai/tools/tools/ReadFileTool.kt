@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets
 class ReadFileTool(
     private val projectSourceDirectory: File = File(System.getProperty("user.dir")),
     private val documentSourceDirectory: File = File(System.getProperty("user.dir"), "doc-source"),
+    private val systemDirectory: File = File(System.getProperty("user.dir")),
     private val maxFileSize: Long = 10 * 1024 * 1024 // 10 MB default limit
 ) : Tool {
 
@@ -36,16 +37,18 @@ class ReadFileTool(
             function = OpenAIFunction(
                 name = "read_file",
                 description = """
-                    Read contents of a file from project source code OR documentation.
-                    Supports two modes:
-                    - 'source_code' (default): Read from project-source folder (for source code files)
+                    Read contents of a file from project source code, documentation, or system files.
+                    Supports three modes:
+                    - 'source_code' (default): Read from project-source folder (for source code files like CLAUDE.md)
                     - 'document': Read from doc-source folder (for documentation files found via RAG search)
+                    - 'system': Read from bot's working directory (for system files like promts/rules.md)
 
                     Use 'document' mode when you need to read the full content of documentation files
                     that were mentioned in search_documents results.
+                    Use 'system' mode for bot configuration files like promts/rules.md.
 
                     Maximum file size: ${maxFileSize / (1024 * 1024)} MB.
-                    IMPORTANT: Do NOT include folder prefixes (project-source/ or doc-source/) in paths.
+                    IMPORTANT: Do NOT include folder prefixes (project-source/ or doc-source/) in paths for those modes.
                 """.trimIndent(),
                 parameters = buildJsonObject {
         put("type", "object")
@@ -59,8 +62,9 @@ class ReadFileTool(
                 putJsonArray("enum") {
                     add("source_code")
                     add("document")
+                    add("system")
                 }
-                put("description", "Read mode: 'source_code' for project files (default) or 'document' for documentation files")
+                put("description", "Read mode: 'source_code' for project files (default), 'document' for documentation files, or 'system' for bot configuration files")
                 put("default", "source_code")
             }
             putJsonObject("startLine") {
@@ -102,8 +106,8 @@ class ReadFileTool(
         val includeLineNumbers = arguments["includeLineNumbers"]?.jsonPrimitive?.booleanOrNull ?: true
 
         // Validate mode
-        if (mode !in listOf("source_code", "document")) {
-            throw IllegalArgumentException("'mode' must be 'source_code' or 'document'")
+        if (mode !in listOf("source_code", "document", "system")) {
+            throw IllegalArgumentException("'mode' must be 'source_code', 'document', or 'system'")
         }
 
         // Validate line range
@@ -187,7 +191,7 @@ class ReadFileTool(
     /**
      * Resolve path relative to the appropriate directory based on mode
      * @param pathStr File path
-     * @param mode Either "source_code" (project-source) or "document" (doc-source)
+     * @param mode Either "source_code" (project-source), "document" (doc-source), or "system" (bot working directory)
      */
     private fun resolvePath(pathStr: String, mode: String): File {
         val path = File(pathStr)
@@ -196,6 +200,7 @@ class ReadFileTool(
         } else {
             val baseDirectory = when (mode) {
                 "document" -> documentSourceDirectory
+                "system" -> systemDirectory
                 else -> projectSourceDirectory
             }
             File(baseDirectory, pathStr).canonicalFile

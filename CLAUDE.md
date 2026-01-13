@@ -229,10 +229,13 @@ The application includes built-in tools (integrated in code, not via external MC
 
 **read_file** (`ReadFileTool.kt`)
 - Read file contents with optional line ranges
-- Supports absolute and relative paths
+- Three modes: `source_code` (project-source), `document` (doc-source), `system` (bot working directory)
 - Line-numbered output for code references
 - 10MB file size limit for safety
-- Example: `read_file(path="src/Main.kt", startLine=10, endLine=50)`
+- Examples:
+  - `read_file(path="CLAUDE.md", mode="document")` - read from doc-source/
+  - `read_file(path="promts/rules.md", mode="system")` - read from bot directory
+  - `read_file(path="src/Main.kt", startLine=10, endLine=50, mode="source_code")` - with line range
 
 **folder_structure** (`FolderStructureTool.kt`)
 - Display directory tree with visual connectors (├──, └──)
@@ -270,6 +273,123 @@ The application includes built-in tools (integrated in code, not via external MC
 - Configurable: topK, minSimilarity
 - Example: `search_documents(query="authentication implementation", topK=5)`
 
+### Git Operations
+
+**git_operation** (`GitOperationTool.kt`)
+- Perform git operations on the project repository
+- Operations:
+  * `get_diff` - Get diff between base and PR branch (automatically handles branch switching and cleanup)
+  * `get_current_branch` - Get the name of the currently checked out branch
+  * `list_branches` - List all available branches (local and remote)
+- Automatic branch restoration (returns to original branch even if errors occur)
+- Branch existence validation and uncommitted changes detection
+- 30-second timeout per operation
+- Example: `git_operation(operation="get_diff", prBranch="feature/new-feature", baseBranch="develop")`
+- Primary use case: PR review workflow via `/review-pr` command
+
+### GitHub Integration
+
+**github_api** (`GitHubTool.kt`)
+- Fetch GitHub repository and Pull Request information via GitHub REST API
+- Built-in tool (no MCP server required)
+- Operations:
+  * `get_pr` - Fetch comprehensive PR details
+- Input methods:
+  * By URL: `github_api(operation="get_pr", url="https://github.com/owner/repo/pull/123")`
+  * By components: `github_api(operation="get_pr", owner="owner", repo="repo", prNumber=123)`
+- Returns detailed PR information:
+  * Basic: title, description, state (open/closed/merged), author
+  * Branches: head branch, base branch
+  * Statistics: comments, commits, changed files, additions/deletions
+  * Metadata: labels, assignees, reviewers
+- Authentication:
+  * Works without token for public repos (60 req/hour rate limit)
+  * Configure GITHUB_TOKEN in .env for private repos and higher rate limit (5000 req/hour)
+- Graceful error handling with helpful messages
+- Alternative to GitHub MCP server (simpler setup, works immediately)
+
+### JIRA Integration
+
+**jira_api** (`JiraTool.kt`)
+- Fetch JIRA issue information via JIRA REST API
+- Built-in tool (no MCP server required)
+- Operations:
+  * `get_issue` - Fetch comprehensive issue details
+- Input methods:
+  * By issue key: `jira_api(operation="get_issue", issueKey="PROJ-123")`
+  * By URL: `jira_api(operation="get_issue", url="https://company.atlassian.net/browse/PROJ-123")`
+- Returns detailed issue information:
+  * Basic: summary, description, issue type, priority, status, resolution
+  * People: assignee, reporter, creator
+  * Dates: created, updated, due date, resolved date
+  * Hierarchy: parent issue, subtasks
+  * Metadata: labels, story points, custom fields
+- Authentication:
+  * Requires: JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN in .env
+  * Works with both Jira Cloud and Server/Data Center
+  * Helpful error messages if not configured
+- Supports both Cloud (atlassian.net) and Server/Data Center instances
+- Automatic issue key extraction from PR descriptions
+- Alternative to JIRA MCP server (simpler setup, works immediately)
+
+### PR Review Feature
+
+The bot includes a `/review-pr` command that performs comprehensive pull request reviews:
+
+**Command Usage:**
+```
+/review-pr https://github.com/owner/repo/pull/123
+```
+
+**Workflow:**
+1. Parse PR URL to extract owner, repo, and PR number
+2. Fetch PR details using built-in GitHub API tool (title, description, branch name, author)
+   - Uses `github_api` tool (no MCP configuration needed!)
+   - Example: `github_api(operation="get_pr", url="https://github.com/owner/repo/pull/123")`
+3. Extract JIRA task link from PR description (if present)
+   - Looks for issue keys like PROJ-123, PROJECT-456, etc.
+4. Fetch JIRA task details using built-in JIRA API tool (requirements, acceptance criteria)
+   - Uses `jira_api` tool (no MCP configuration needed if credentials set!)
+   - Example: `jira_api(operation="get_issue", issueKey="PROJ-123")`
+5. Read project conventions (CLAUDE.md) and code quality rules (promts/rules.md)
+6. Use git_operation tool to get diff between base and PR branches
+7. Analyze code changes against:
+   - JIRA requirements (if available)
+   - Project conventions (CLAUDE.md)
+   - Code quality rules (rules.md)
+8. Generate structured review report with:
+   - Requirements compliance check
+   - Issues found (with file paths and line numbers)
+   - Security analysis
+   - Testing coverage assessment
+   - Actionable recommendations
+
+**Prerequisites:**
+- **REQUIRED:** `PROJECT_SOURCE_DIR` environment variable must point to a valid git repository
+  - Set in `.env` file: `PROJECT_SOURCE_DIR=/path/to/your/project`
+  - Can be absolute path or relative to bot's working directory
+  - Directory must contain a `.git` folder
+- **Recommended:** `GITHUB_TOKEN` in `.env` for accessing private repositories and higher rate limits
+  - Public repos work without token (60 req/hour)
+  - With token: private repos + 5000 req/hour
+- **Optional:** `JIRA_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` in `.env` for JIRA integration
+  - Enables automatic JIRA task fetching from PR descriptions
+  - Works with both Jira Cloud and Server/Data Center
+- `promts/rules.md` file with code quality rules (optional)
+
+**Report Format:**
+- Severity levels: Critical (must fix), Major (should fix), Minor (nice to have)
+- Each issue includes: file path, line number, code snippet, description, recommendation
+- Final conclusion: APPROVE / REQUEST CHANGES / REJECT
+
+**Graceful Degradation:**
+- Built-in GitHub API tool works immediately (no MCP setup needed)
+- Works without GITHUB_TOKEN (public repos only, rate limited)
+- Built-in JIRA API tool works when credentials configured (no MCP setup needed)
+- Works without JIRA credentials (skips JIRA task analysis)
+- Works without rules.md (general code review without specific guidelines)
+- Clear error messages guide configuration if needed
+
 **Tool Registration Pattern:**
 ```kotlin
 // In AppDi.kt
@@ -287,6 +407,9 @@ single {
     tools.add(FolderStructureTool())
     tools.add(ExploringTool(apiKey = get(...), httpClient = get()))
     tools.add(DocumentWriterTool())
+    tools.add(GitOperationTool(workingDirectory = projectSourceDir))
+    tools.add(GitHubTool(httpClient = get(), githubToken = get(...)))
+    tools.add(JiraTool(httpClient = get(), jiraUrl = get(...), jiraEmail = get(...), jiraToken = get(...)))
 
     tools
 }

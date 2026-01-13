@@ -13,6 +13,9 @@ import io.github.devapro.ai.tools.tools.DocumentWriterTool
 import io.github.devapro.ai.tools.tools.ExploringTool
 import io.github.devapro.ai.tools.tools.FindFileTool
 import io.github.devapro.ai.tools.tools.FolderStructureTool
+import io.github.devapro.ai.tools.tools.GitHubTool
+import io.github.devapro.ai.tools.tools.GitOperationTool
+import io.github.devapro.ai.tools.tools.JiraTool
 import io.github.devapro.ai.tools.tools.ReadFileTool
 import io.github.devapro.ai.tools.rag.ContextCompressor
 import io.github.devapro.ai.tools.rag.EnhancedRagSearchTool
@@ -216,6 +219,17 @@ val appModule = module {
             workingDirectory = projectSourceDir
         ))
         tools.add(DocumentWriterTool())  // Uses doc-source, not project-source
+        tools.add(GitOperationTool(workingDirectory = projectSourceDir))  // Git operations for PR review
+        tools.add(GitHubTool(
+            httpClient = get(),
+            githubToken = get(qualifier = named("githubToken"))
+        ))  // GitHub API for PR details
+        tools.add(JiraTool(
+            httpClient = get(),
+            jiraUrl = get(qualifier = named("jiraUrl")),
+            jiraEmail = get(qualifier = named("jiraEmail")),
+            jiraToken = get(qualifier = named("jiraApiToken"))
+        ))  // JIRA API for issue details
 
         tools
     }
