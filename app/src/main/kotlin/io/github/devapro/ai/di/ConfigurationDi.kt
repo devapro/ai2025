@@ -52,6 +52,30 @@ val configurationModule = module {
     }
 
     // ========================================
+    // GitHub Configuration
+    // ========================================
+
+    single(qualifier = named("githubToken")) {
+        get<Dotenv>()["GITHUB_TOKEN"] // Optional - can be null
+    }
+
+    // ========================================
+    // JIRA Configuration
+    // ========================================
+
+    single(qualifier = named("jiraUrl")) {
+        get<Dotenv>()["JIRA_URL"] // Optional - can be null
+    }
+
+    single(qualifier = named("jiraEmail")) {
+        get<Dotenv>()["JIRA_EMAIL"] // Optional - can be null
+    }
+
+    single(qualifier = named("jiraApiToken")) {
+        get<Dotenv>()["JIRA_API_TOKEN"] // Optional - can be null
+    }
+
+    // ========================================
     // MCP Configuration
     // ========================================
 
