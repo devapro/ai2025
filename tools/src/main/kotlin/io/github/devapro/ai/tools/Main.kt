@@ -1,21 +1,17 @@
 package io.github.devapro.ai.tools
 
-import io.github.devapro.ai.tools.tools.CodeSearchTool
-import io.github.devapro.ai.tools.tools.FindFileTool
-import io.github.devapro.ai.tools.tools.ReadFileTool
+import io.github.devapro.ai.tools.tools.TicketTool
 import org.slf4j.LoggerFactory
 import java.io.File
 
 /**
- * Main entry point for the File Tools MCP Server
+ * Main entry point for the Support Tools MCP Server
  *
- * This server provides file system tools via the Model Context Protocol (MCP).
+ * This server provides support tools via the Model Context Protocol (MCP).
  * Communication happens over stdin/stdout using JSON-RPC 2.0.
  *
  * Available Tools:
- * - find_file: Search for files in directories with glob patterns
- * - read_file: Read file contents with optional line range
- * - search_code: Search for text patterns across source code
+ * - manage_tickets: View and manage support tickets
  *
  * Usage:
  * 1. Direct execution:
@@ -24,7 +20,7 @@ import java.io.File
  * 2. As MCP server (from another application):
  *    Add to mcp-config.json:
  *    {
- *      "name": "file-tools",
+ *      "name": "support-tools",
  *      "type": "stdio",
  *      "command": "./gradlew",
  *      "args": [":tools:run", "--console=plain", "--quiet"]
@@ -32,35 +28,29 @@ import java.io.File
  *
  * Environment:
  * - Working directory is set to project root (configured in build.gradle.kts)
- * - All file paths are resolved relative to working directory
+ * - Tickets are loaded from tickets.json in the working directory
  */
 fun main() {
-    val logger = LoggerFactory.getLogger("FileToolsServer")
+    val logger = LoggerFactory.getLogger("SupportToolsServer")
 
     try {
         // Get working directory from system property
         val workingDir = File(System.getProperty("user.dir"))
-        val docSourceDir = File(workingDir, "doc-source")
         logger.info("Working directory: ${workingDir.absolutePath}")
 
         // Initialize tools
         val tools = listOf(
-            FindFileTool(workingDirectory = workingDir),
-            ReadFileTool(
-                projectSourceDirectory = workingDir,
-                documentSourceDirectory = docSourceDir
-            ),
-            CodeSearchTool(workingDirectory = workingDir)
+            TicketTool(ticketsFilePath = "tickets.json")
         )
 
         // Create and start MCP server
         val server = McpServer(
             tools = tools,
-            serverName = "file-tools",
+            serverName = "support-tools",
             serverVersion = "1.0.0"
         )
 
-        logger.info("Starting File Tools MCP Server...")
+        logger.info("Starting Support Tools MCP Server...")
         server.start()
 
     } catch (e: Exception) {

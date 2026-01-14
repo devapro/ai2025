@@ -47,52 +47,12 @@ val configurationModule = module {
         get<Dotenv>()["USERS_FILE_PATH"] ?: "users.md"
     }
 
-    single(qualifier = named("projectSourceDir")) {
-        get<Dotenv>()["PROJECT_SOURCE_DIR"] ?: "project-source"
-    }
-
-    // ========================================
-    // GitHub Configuration
-    // ========================================
-
-    single(qualifier = named("githubToken")) {
-        get<Dotenv>()["GITHUB_TOKEN"] // Optional - can be null
-    }
-
-    // ========================================
-    // JIRA Configuration
-    // ========================================
-
-    single(qualifier = named("jiraUrl")) {
-        get<Dotenv>()["JIRA_URL"] // Optional - can be null
-    }
-
-    single(qualifier = named("jiraEmail")) {
-        get<Dotenv>()["JIRA_EMAIL"] // Optional - can be null
-    }
-
-    single(qualifier = named("jiraApiToken")) {
-        get<Dotenv>()["JIRA_API_TOKEN"] // Optional - can be null
-    }
-
     // ========================================
     // MCP Configuration
     // ========================================
 
     single(qualifier = named("mcpConfigPath")) {
         get<Dotenv>()["MCP_CONFIG_PATH"] ?: "mcp-config.json"
-    }
-
-    // ========================================
-    // Daily Summary Scheduler Configuration
-    // ========================================
-
-    single(qualifier = named("dailySummaryHour")) {
-        get<Dotenv>()["DAILY_SUMMARY_HOUR"]?.toIntOrNull() ?: 10
-    }
-
-    single(qualifier = named("dailySummaryMinute")) {
-        get<Dotenv>()["DAILY_SUMMARY_MINUTE"]?.toIntOrNull() ?: 0
     }
 
     // ========================================

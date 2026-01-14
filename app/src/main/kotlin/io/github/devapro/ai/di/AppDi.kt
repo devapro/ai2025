@@ -8,15 +8,7 @@ import io.github.devapro.ai.agent.ToolProvider
 import io.github.devapro.ai.bot.TelegramBot
 import io.github.devapro.ai.tools.rag.RagSearchToolInterface
 import io.github.devapro.ai.tools.Tool
-import io.github.devapro.ai.tools.tools.CodeSearchTool
-import io.github.devapro.ai.tools.tools.DocumentWriterTool
-import io.github.devapro.ai.tools.tools.ExploringTool
-import io.github.devapro.ai.tools.tools.FindFileTool
-import io.github.devapro.ai.tools.tools.FolderStructureTool
-import io.github.devapro.ai.tools.tools.GitHubTool
-import io.github.devapro.ai.tools.tools.GitOperationTool
-import io.github.devapro.ai.tools.tools.JiraTool
-import io.github.devapro.ai.tools.tools.ReadFileTool
+import io.github.devapro.ai.tools.tools.TicketTool
 import io.github.devapro.ai.tools.rag.ContextCompressor
 import io.github.devapro.ai.tools.rag.EnhancedRagSearchTool
 import io.github.devapro.ai.tools.rag.HybridSearchTool
@@ -27,7 +19,6 @@ import io.github.devapro.ai.tools.rag.TokenCounter
 import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.mcp.config.McpConfigLoader
 import io.github.devapro.ai.repository.FileRepository
-import io.github.devapro.ai.scheduler.DailySummaryScheduler
 import io.github.devapro.ai.embeds.rag.EmbeddingGenerator
 import io.github.devapro.ai.embeds.rag.VectorDatabase
 import io.ktor.client.*
@@ -195,41 +186,13 @@ val appModule = module {
         val ragEnabled: Boolean = get(qualifier = named("ragEnabled"))
         val tools = mutableListOf<Tool>()
 
-        // Project source directory - root for all file operations
-        val projectSourcePath: String = get(qualifier = named("projectSourceDir"))
-        val projectSourceDir = java.io.File(System.getProperty("user.dir"), projectSourcePath)
-
         // Add RAG search tool if enabled
         if (ragEnabled) {
             tools.add(get<RagSearchToolInterface>())
         }
 
-        // Add file tools (always available) - all use project-source as working directory
-        val docSourceDir = java.io.File(System.getProperty("user.dir"), "doc-source")
-        tools.add(FindFileTool(workingDirectory = projectSourceDir))
-        tools.add(ReadFileTool(
-            projectSourceDirectory = projectSourceDir,
-            documentSourceDirectory = docSourceDir
-        ))
-        tools.add(CodeSearchTool(workingDirectory = projectSourceDir))
-        tools.add(FolderStructureTool(workingDirectory = projectSourceDir))
-        tools.add(ExploringTool(
-            apiKey = get(qualifier = named("openAiApiKey")),
-            httpClient = get(),
-            workingDirectory = projectSourceDir
-        ))
-        tools.add(DocumentWriterTool())  // Uses doc-source, not project-source
-        tools.add(GitOperationTool(workingDirectory = projectSourceDir))  // Git operations for PR review
-        tools.add(GitHubTool(
-            httpClient = get(),
-            githubToken = get(qualifier = named("githubToken"))
-        ))  // GitHub API for PR details
-        tools.add(JiraTool(
-            httpClient = get(),
-            jiraUrl = get(qualifier = named("jiraUrl")),
-            jiraEmail = get(qualifier = named("jiraEmail")),
-            jiraToken = get(qualifier = named("jiraApiToken"))
-        ))  // JIRA API for issue details
+        // Add ticket management tool
+        tools.add(TicketTool(ticketsFilePath = "tickets.json"))
 
         tools
     }
@@ -264,21 +227,10 @@ val appModule = module {
         )
     }
 
-    // Scheduler layer
-    single {
-        DailySummaryScheduler(
-            aiAgent = get(),
-            fileRepository = get(),
-            bot = get<TelegramBot>().bot,
-            targetHour = get(qualifier = named("dailySummaryHour")),
-            targetMinute = get(qualifier = named("dailySummaryMinute"))
-        )
-    }
-
     // Shutdown manager
     single {
         AppShutDownManager(
-            dailySummaryScheduler = get(),
+            dailySummaryScheduler = null,
             mcpManager = get(),
             telegramBot = get(),
             aiAgent = get(),

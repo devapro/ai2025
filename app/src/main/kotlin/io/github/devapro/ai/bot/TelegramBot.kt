@@ -48,30 +48,28 @@ class TelegramBot(
                 bot.sendMessage(
                     chatId = chatId,
                     text = """
-                        🤖 *Welcome to your AI Project Assistant!*
+                        👋 *Welcome to your Support Assistant!*
 
-                        I'm your intelligent assistant for project management, code review, and task automation.
+                        I'm your intelligent support assistant, here to help you find answers and manage support tickets.
 
                         *What I can do:*
-                        • 📅 Manage your schedule and calendar
-                        • 🔍 Review Pull Requests with detailed analysis
-                        • 📝 Search and explore your codebase
-                        • 📊 Track JIRA tasks and requirements
-                        • 🔧 Perform git operations and code analysis
-                        • 💡 Answer questions about your project
+                        • 📚 Search our knowledge base for answers
+                        • 🎫 View and manage support tickets
+                        • 💡 Answer questions about common issues
+                        • 🔍 Find solutions to technical problems
+                        • ⚡ Provide quick troubleshooting steps
 
                         *Key Commands:*
-                        • /review-pr <url> - Review a GitHub Pull Request
                         • /summary - Get today's schedule
                         • /clear - Clear conversation history
                         • /help - Show all available commands
 
                         *Pro Tips:*
-                        • Ask me anything about your codebase
-                        • I can analyze code quality and security
-                        • Configure GitHub/JIRA in mcp-config.json for enhanced features
+                        • Ask me anything - I'll search our documentation
+                        • Request ticket information: "Show me open tickets"
+                        • Get help with common issues: "How do I reset my password?"
 
-                        Just tell me what you need - I'm here to help! 🚀
+                        Just tell me how I can help you! 🚀
                     """.trimIndent(),
                     parseMode = ParseMode.MARKDOWN
                 )
@@ -87,24 +85,28 @@ class TelegramBot(
 
                         /start - Show welcome message
                         /summary - Get today's schedule and events
-                        /review-pr - Review a GitHub Pull Request
                         /clear - Clear conversation history
                         /help - Show this help message
 
                         *What I can do:*
-                        • 📝 Create events: "Schedule a meeting tomorrow at 2pm"
-                        • 📋 List schedule: "What's on my calendar today?"
-                        • 🔍 Search: "Find my meetings with John"
-                        • ✏️ Update: "Move my dentist appointment to Friday"
-                        • 🗑️ Delete: "Cancel the team lunch"
-                        • ⏰ Availability: "When am I free this week?"
-                        • 🔍 Review PRs: /review-pr https://github.com/owner/repo/pull/123
+                        • 📚 Search documentation: "How do I reset my password?"
+                        • 🎫 View tickets: "Show me all open tickets"
+                        • 🔍 Find tickets: "Are there any tickets about login issues?"
+                        • 📊 Ticket details: "What's the status of TICKET-001?"
+                        • 💡 Troubleshooting: "What are common login issues?"
+                        • ⚙️ Features: "How do I enable two-factor authentication?"
+
+                        *Example questions:*
+                        • "How much does the service cost?"
+                        • "Show me all critical tickets"
+                        • "What's on my calendar today?"
+                        • "How do I cancel my subscription?"
 
                         *Tips:*
-                        • Use natural language for dates and times
-                        • I'll ask for details if needed
+                        • Use natural language - I'll understand!
+                        • I automatically search our knowledge base
+                        • Ask about specific tickets by ID
                         • Use /summary for a quick daily overview
-                        • Configure GitHub/JIRA in mcp-config.json for PR reviews
 
                         Just tell me what you need!
                     """.trimIndent(),
@@ -155,57 +157,6 @@ class TelegramBot(
                 }
             }
 
-            // Handle /review-pr command
-            command("review-pr") {
-                val chatId = message.chat.id
-                val prUrl = message.text?.substringAfter("/review-pr ")?.trim()
-
-                // Validate URL
-                if (prUrl.isNullOrBlank() || !prUrl.startsWith("http")) {
-                    bot.sendMessage(
-                        chatId = ChatId.fromId(chatId),
-                        text = """
-                            *Usage:* /review-pr <github-pr-url>
-
-                            *Example:*
-                            /review-pr https://github.com/owner/repo/pull/123
-
-                            *Note:* Make sure GitHub and JIRA MCP servers are configured in mcp-config.json if you want to fetch PR details and task information.
-                        """.trimIndent(),
-                        parseMode = ParseMode.MARKDOWN
-                    )
-                    return@command
-                }
-
-                logger.info("PR review command received from user $chatId: $prUrl")
-
-                // Send initial status
-                bot.sendMessage(
-                    chatId = ChatId.fromId(chatId),
-                    text = "🔍 *Starting PR review for:* $prUrl\n\nThis may take a minute...",
-                    parseMode = ParseMode.MARKDOWN
-                )
-
-                // Send typing indicator
-                bot.sendChatAction(ChatId.fromId(chatId), com.github.kotlintelegrambot.entities.ChatAction.TYPING)
-
-                // Process in coroutine
-                coroutineScope.launch {
-                    try {
-                        // Build specialized prompt for PR review
-                        val prReviewPrompt = buildPrReviewPrompt(prUrl)
-
-                        // Use existing AI agent (reuse, don't create new)
-                        val response = aiAgent.processMessage(chatId, prReviewPrompt)
-
-                        sendMessageSafely(chatId, response)
-                    } catch (e: Exception) {
-                        logger.error("Error in PR review: ${e.message}", e)
-                        sendMessageSafely(chatId, "Sorry, I encountered an error during PR review: ${e.message}")
-                    }
-                }
-            }
-
             // Handle regular text messages
             text {
                 val chatId = message.chat.id
@@ -242,122 +193,6 @@ class TelegramBot(
                 }
             }
         }
-    }
-
-    /**
-     * Build specialized prompt for PR review workflow
-     */
-    private fun buildPrReviewPrompt(prUrl: String): String {
-        return """
-Please review the Pull Request at: $prUrl
-
-Follow these steps to conduct a comprehensive PR review:
-
-1. **Parse PR URL** - Extract owner, repository name, and PR number from the URL
-
-2. **Fetch PR Details**
-   - Use github_api tool to fetch PR details (title, description, branch name, author)
-   - The tool works immediately without MCP configuration
-   - Example: github_api(operation="get_pr", url="https://github.com/owner/repo/pull/123")
-
-3. **Extract JIRA Link** (if present in PR description)
-   - Look for JIRA task ID in format: PROJ-123, PROJECT-456, etc.
-   - Extract task link if found
-
-4. **Fetch JIRA Task** (if link found)
-   - Use jira_api tool to fetch task description and requirements
-   - Example: jira_api(operation="get_issue", issueKey="PROJ-123")
-   - If JIRA not configured, skip JIRA analysis
-
-5. **Read Project Rules**
-   - Use read_file tool to read CLAUDE.md: read_file(path="CLAUDE.md", mode="document")
-   - Use read_file tool to read promts/rules.md: read_file(path="promts/rules.md", mode="system")
-   - If files don't exist, proceed with general code review
-
-6. **Get Code Diff**
-   - Use git_operation tool with operation="get_diff"
-   - Provide prBranch (from GitHub or extracted from URL)
-   - Provide baseBranch (default: "develop")
-   - This will automatically handle branch switching and cleanup
-
-7. **Analyze Code Changes**
-   - Review diff against CLAUDE.md conventions
-   - Check compliance with rules.md guidelines
-   - Verify JIRA requirements are met (if task was fetched)
-   - Look for:
-     * Code quality issues
-     * Security vulnerabilities
-     * Missing tests
-     * Documentation gaps
-     * Convention violations
-
-8. **Generate Review Report**
-
-Please format your report as follows:
-
-# PR Review Report
-
-**Title:** [PR title]
-**JIRA:** [JIRA link] (if found)
-
-## Summary
-[Brief overview of what this PR changes - 2-3 sentences]
-
-## Requirements Compliance
-
-### JIRA Task Requirements (if available)
-✅ Requirement 1 met
-❌ Requirement 2 missing
-⚠️ Requirement 3 partially implemented
-
-### Project Conventions (CLAUDE.md)
-✅ Follows Kotlin coding standards
-✅ Uses dependency injection
-❌ Missing: [specific issue]
-
-### Code Quality Rules (rules.md)
-✅ No hardcoded secrets
-⚠️ Warning: [issue]
-❌ Error: [issue]
-
-## Issues Found
-
-### Critical Issues (Must Fix Before Merge)
-1. **[Issue Title]**
-   - File: `path/to/file.kt`
-   - Line: 123
-   - Code: `problematic code snippet`
-   - Issue: [Detailed description of the problem]
-   - Recommendation: [How to fix it]
-
-### Major Issues (Should Fix)
-[Same format as critical]
-
-### Minor Issues (Nice to Have)
-[Same format as critical]
-
-## Security Analysis
-[Security concerns, or "✅ No security issues found"]
-
-## Testing Coverage
-[Analysis of test coverage, or "❌ No tests found for new code"]
-
-## Documentation
-[Documentation completeness check]
-
-## Conclusion
-**Status:** ✅ APPROVE / ⚠️ REQUEST CHANGES / ❌ REJECT
-
-[Overall assessment and key points]
-
----
-
-**Important:**
-- Be thorough but constructive
-- Provide specific file paths and line numbers for all issues
-- Use existing project tools (read_file, search_code, explore_files) if you need more context
-- If you encounter errors with any tool, gracefully skip that step and continue with the review
-        """.trimIndent()
     }
 
     /**

@@ -3,7 +3,6 @@ package io.github.devapro.ai
 import io.github.devapro.ai.bot.TelegramBot
 import io.github.devapro.ai.di.allModules
 import io.github.devapro.ai.mcp.McpManager
-import io.github.devapro.ai.scheduler.DailySummaryScheduler
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -30,7 +29,6 @@ fun main() {
 
         val mcpManager = koin.get<McpManager>()
         val telegramBot = koin.get<TelegramBot>()
-        val dailySummaryScheduler = koin.get<DailySummaryScheduler>()
         val shutdownManager = koin.get<AppShutDownManager>()
 
         logger.info("All components initialized via DI")
@@ -52,14 +50,6 @@ fun main() {
 
         // Start the bot
         telegramBot.start()
-
-        // Start the daily summary scheduler
-   //     dailySummaryScheduler.start()
-
-        // For testing
-//        runBlocking {
-//            dailySummaryScheduler.triggerManualSummary()
-//        }
 
         logger.info("Application started successfully!")
 

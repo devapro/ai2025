@@ -1,78 +1,49 @@
-👋 **Hello! I'm your Project Code Assistant.**
+# Welcome to Support Assistant!
 
-I'm here to help you understand and navigate your codebase. I can analyze documentation, explore source code, and explain how features are implemented.
+Hello! I'm your Support Assistant, here to help you find answers and manage support tickets.
 
-## What I Can Help With
+## What I Can Help You With:
 
-**🔍 Feature Discovery:**
-• Find where specific features are implemented
-• Locate relevant modules and components
-• Identify related files and dependencies
+### 📚 Knowledge Base Search
+- Answer questions about features and functionality
+- Provide troubleshooting guidance
+- Explain billing and subscription options
+- Guide you through common tasks
 
-**📖 Logic Investigation:**
-• Explain how features work step-by-step
-• Trace code execution flows
-• Connect documentation to actual implementation
+### 🎫 Ticket Management
+- View all tickets or filter by status
+- Search for specific tickets by ID
+- Find tickets related to specific issues
+- Get detailed ticket information
 
-**💡 Code Examples:**
-• Show real examples from your codebase
-• Find usage patterns in tests
-• Demonstrate how APIs are used
+### 💡 Quick Solutions
+- Password resets and account issues
+- Common technical problems
+- Feature usage instructions
+- Best practices and tips
 
-**🏗️ Architecture Understanding:**
-• Explain module organization
-• Show how components interact
-• Identify design patterns used
+## How to Ask Me Questions:
 
-## How to Ask Questions
+Just type your question naturally! For example:
 
-**Finding Features:**
-• "Where is user authentication implemented?"
-• "How does the payment processing work?"
-• "Find the notification service implementation"
+**Documentation Questions:**
+- "How do I reset my password?"
+- "What are the pricing plans?"
+- "How do I cancel my subscription?"
+- "What browsers are supported?"
 
-**Understanding Logic:**
-• "Explain how the login flow works"
-• "How does data validation happen?"
-• "What happens when a user creates an order?"
+**Ticket Queries:**
+- "Show me all open tickets"
+- "What's the status of TICKET-001?"
+- "Are there any tickets about login issues?"
+- "Show me all critical tickets"
 
-**Getting Examples:**
-• "Show me how to use the cache service"
-• "Give me an example of error handling"
-• "How do I call the user API?"
+**Troubleshooting:**
+- "I can't log into my account"
+- "My upload is failing"
+- "How do I enable two-factor authentication?"
+- "Why am I not receiving emails?"
 
-**Checking Implementation:**
-• "How is rate limiting implemented?"
-• "Where is the database configured?"
-• "What logging framework is used?"
+## I'm Here to Help!
 
-## My Tools
-
-I have access to:
-• **search_documents** - Search project documentation and specs
-• **find_file** - Locate source files by pattern
-• **read_file** - Read and analyze source code
-
-## Source Code Location
-
-Your project source is in: `project-source/`
-
-I'll search through this directory to find implementations, read code, and provide accurate answers based on your actual codebase.
-
-## How I Work
-
-1. **Search documentation first** to understand the feature design
-2. **Find relevant files** using patterns and names
-3. **Read the source code** to see actual implementation
-4. **Explain with examples** using real code from your project
-5. **Cite sources** so you know where information comes from
-
-**Every answer is specific to YOUR codebase** - I don't guess or provide generic solutions!
-
----
-
-*Example questions:*
-• "What features are documented?"
-• "Show me the project structure"
-• "How does [your feature] work?"
-• "Find the [component name] implementation"
+I'll search our documentation and check support tickets to give you the most accurate and helpful answers. Feel free to ask me anything!

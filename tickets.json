@@ -1,0 +1,123 @@
+[
+  {
+    "id": "TICKET-001",
+    "title": "Cannot login to account",
+    "description": "User reports that they cannot login using their registered email and password. They receive 'Invalid credentials' error message. Password reset link also not working.",
+    "status": "open",
+    "priority": "high",
+    "assignee": "support@example.com",
+    "reporter": "user123@email.com",
+    "created_at": "2024-01-14T09:30:00Z",
+    "updated_at": "2024-01-14T09:30:00Z",
+    "tags": ["account", "login", "authentication"]
+  },
+  {
+    "id": "TICKET-002",
+    "title": "Document upload fails for large PDF files",
+    "description": "Users are unable to upload PDF files larger than 50MB. The upload progress bar reaches 100% but then shows an error. This affects multiple users on the Basic plan.",
+    "status": "in_progress",
+    "priority": "critical",
+    "assignee": "tech-team@example.com",
+    "reporter": "john.doe@company.com",
+    "created_at": "2024-01-13T14:20:00Z",
+    "updated_at": "2024-01-14T08:15:00Z",
+    "tags": ["upload", "pdf", "file-size", "bug"]
+  },
+  {
+    "id": "TICKET-003",
+    "title": "Request to increase API rate limits",
+    "description": "Enterprise customer requesting higher API rate limits. Current limit of 10,000 requests/hour is insufficient for their integration needs. They need at least 50,000 requests/hour.",
+    "status": "open",
+    "priority": "medium",
+    "assignee": "sales@example.com",
+    "reporter": "enterprise.client@bigcorp.com",
+    "created_at": "2024-01-12T11:45:00Z",
+    "updated_at": "2024-01-13T16:30:00Z",
+    "tags": ["api", "rate-limit", "enterprise", "feature-request"]
+  },
+  {
+    "id": "TICKET-004",
+    "title": "Mobile app crashes on iOS 18",
+    "description": "Multiple users reporting that the iOS mobile app crashes immediately upon launch after updating to iOS 18. The app was working fine before the iOS update.",
+    "status": "in_progress",
+    "priority": "critical",
+    "assignee": "mobile-dev@example.com",
+    "reporter": "support@example.com",
+    "created_at": "2024-01-11T08:00:00Z",
+    "updated_at": "2024-01-14T07:45:00Z",
+    "tags": ["mobile", "ios", "crash", "bug"]
+  },
+  {
+    "id": "TICKET-005",
+    "title": "Search not returning recent documents",
+    "description": "User uploaded documents yesterday but they don't appear in search results. All other documents are searchable. User has tried refreshing and clearing cache.",
+    "status": "open",
+    "priority": "medium",
+    "assignee": "backend-team@example.com",
+    "reporter": "mary.smith@email.com",
+    "created_at": "2024-01-14T10:15:00Z",
+    "updated_at": "2024-01-14T10:15:00Z",
+    "tags": ["search", "indexing", "bug"]
+  },
+  {
+    "id": "TICKET-006",
+    "title": "Billing charged twice for January subscription",
+    "description": "Customer was charged twice for their Professional plan subscription on January 1st. They have provided transaction IDs and bank statements as proof.",
+    "status": "in_progress",
+    "priority": "high",
+    "assignee": "billing@example.com",
+    "reporter": "customer456@email.com",
+    "created_at": "2024-01-10T13:20:00Z",
+    "updated_at": "2024-01-13T15:00:00Z",
+    "tags": ["billing", "payment", "refund"]
+  },
+  {
+    "id": "TICKET-007",
+    "title": "Feature request: Dark mode for mobile app",
+    "description": "Multiple users have requested dark mode support for the mobile app. Desktop version already has dark mode. This would improve usability for users working in low-light environments.",
+    "status": "open",
+    "priority": "low",
+    "assignee": "product@example.com",
+    "reporter": "community@example.com",
+    "created_at": "2024-01-08T16:00:00Z",
+    "updated_at": "2024-01-10T09:30:00Z",
+    "tags": ["feature-request", "mobile", "ui", "dark-mode"]
+  },
+  {
+    "id": "TICKET-008",
+    "title": "Slack integration not sending notifications",
+    "description": "Team has configured Slack integration but notifications for document mentions and comments are not being sent. Integration appears connected in settings.",
+    "status": "open",
+    "priority": "medium",
+    "assignee": "integrations@example.com",
+    "reporter": "team.lead@startup.com",
+    "created_at": "2024-01-13T12:00:00Z",
+    "updated_at": "2024-01-14T08:30:00Z",
+    "tags": ["integration", "slack", "notifications"]
+  },
+  {
+    "id": "TICKET-009",
+    "title": "Password reset email not received",
+    "description": "User requested password reset multiple times but is not receiving the email. They have checked spam folder. Email address is confirmed to be correct.",
+    "status": "in_progress",
+    "priority": "high",
+    "assignee": "support@example.com",
+    "reporter": "blocked.user@email.com",
+    "created_at": "2024-01-14T07:00:00Z",
+    "updated_at": "2024-01-14T09:00:00Z",
+    "tags": ["email", "password-reset", "account"]
+  },
+  {
+    "id": "TICKET-010",
+    "title": "Documentation request: API webhook examples",
+    "description": "Developer requests more detailed webhook documentation with code examples in Python, Node.js, and Ruby. Current docs only show basic curl examples.",
+    "status": "closed",
+    "priority": "low",
+    "assignee": "docs@example.com",
+    "reporter": "developer@tech.com",
+    "created_at": "2024-01-05T14:30:00Z",
+    "updated_at": "2024-01-12T11:00:00Z",
+    "resolution": "Documentation updated with comprehensive webhook examples in Python, Node.js, Ruby, and Go. Available at docs.example.com/webhooks",
+    "tags": ["documentation", "api", "webhooks", "completed"]
+  }
+]

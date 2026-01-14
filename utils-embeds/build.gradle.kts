@@ -29,7 +29,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("io.github.devapro.ai.utils.UtilAppKt")
+    mainClass.set("io.github.devapro.ai.embeds.UtilAppKt")
 }
 
 tasks.named<JavaExec>("run") {
