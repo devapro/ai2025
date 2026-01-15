@@ -75,12 +75,15 @@ Ai1/
 │       └── App.kt                # Application entry point
 ├── tools/                        # Internal tools module
 │   └── src/main/kotlin/io/github/devapro/ai/tools/
-│       ├── impl/                 # Tool implementations
+│       ├── tools/                # Tool implementations
 │       │   ├── FindFileTool.kt
 │       │   ├── ReadFileTool.kt
+│       │   ├── CodeSearchTool.kt
 │       │   ├── FolderStructureTool.kt
 │       │   ├── ExploringTool.kt
-│       │   └── DocumentWriterTool.kt
+│       │   ├── GitHubTool.kt
+│       │   ├── GitOperationTool.kt
+│       │   └── JiraTool.kt
 │       ├── rag/                  # RAG search tools
 │       │   ├── RagSearchTool.kt
 │       │   └── EnhancedRagSearchTool.kt
@@ -234,15 +237,6 @@ The bot comes with several built-in tools that the AI agent can use automaticall
 - Uses GPT-4o-mini for cost-effective summaries
 - Filter by file extensions, control recursion depth
 - Example: "Explore all Kotlin files in the agent package and summarize what they do"
-
-**write_documentation** - Create and modify documentation
-- Write new documentation files in `doc-source` folder
-- Update existing documentation
-- Append to existing files (useful for changelogs)
-- Three modes: create, overwrite, append
-- Automatic directory creation
-- Security: Restricted to doc-source folder only
-- Example: "Create documentation explaining how the RAG system works"
 
 ### RAG Tool
 

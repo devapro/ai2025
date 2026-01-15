@@ -254,15 +254,6 @@ The application includes built-in tools (integrated in code, not via external MC
 - Limits: 20 files per request, 50KB per file, 10K chars to LLM
 - Example: `explore_files(folderPath="src/agent", recursive=true, fileExtensions=["kt"])`
 
-### Documentation
-
-**write_documentation** (`DocumentWriterTool.kt`)
-- Create or modify documentation files in `doc-source` folder only
-- Three modes: create (fails if exists), overwrite (replace), append (add to end)
-- Automatic parent directory creation
-- Security: path traversal prevention, restricted to doc-source
-- Example: `write_documentation(filePath="api/auth.md", content="# Auth\n...", mode="create")`
-
 ### Semantic Search
 
 **search_documents** (`RagSearchTool.kt` or `EnhancedRagSearchTool.kt`)
@@ -311,13 +302,19 @@ The application includes built-in tools (integrated in code, not via external MC
 ### JIRA Integration
 
 **jira_api** (`JiraTool.kt`)
-- Fetch JIRA issue information via JIRA REST API
+- Fetch and manage JIRA issues via JIRA REST API
 - Built-in tool (no MCP server required)
 - Operations:
   * `get_issue` - Fetch comprehensive issue details
+  * `get_backlog` - Fetch list of tasks from backlog (requires JIRA_PROJECT_KEY)
+  * `get_active_sprint` - Fetch tasks in active sprint (requires JIRA_PROJECT_KEY)
+  * `create_issue` - Create a new task (requires JIRA_PROJECT_KEY)
 - Input methods:
-  * By issue key: `jira_api(operation="get_issue", issueKey="PROJ-123")`
-  * By URL: `jira_api(operation="get_issue", url="https://company.atlassian.net/browse/PROJ-123")`
+  * Get issue by key: `jira_api(operation="get_issue", issueKey="PROJ-123")`
+  * Get issue by URL: `jira_api(operation="get_issue", url="https://company.atlassian.net/browse/PROJ-123")`
+  * Get backlog: `jira_api(operation="get_backlog", maxResults=50)`
+  * Get active sprint: `jira_api(operation="get_active_sprint", maxResults=50)`
+  * Create issue: `jira_api(operation="create_issue", summary="Task title", description="Details", issueType="Task", priority="High", assignee="user@example.com", labels=["bug", "urgent"])`
 - Returns detailed issue information:
   * Basic: summary, description, issue type, priority, status, resolution
   * People: assignee, reporter, creator
@@ -326,10 +323,17 @@ The application includes built-in tools (integrated in code, not via external MC
   * Metadata: labels, story points, custom fields
 - Authentication:
   * Requires: JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN in .env
+  * Optional: JIRA_PROJECT_KEY (required for backlog/sprint/create operations)
+  * Optional: JIRA_BACKLOG_STATUSES (comma-separated list of statuses, default: "Backlog,To Do,Open")
   * Works with both Jira Cloud and Server/Data Center
   * Helpful error messages if not configured
-- Supports both Cloud (atlassian.net) and Server/Data Center instances
-- Automatic issue key extraction from PR descriptions
+- Features:
+  * Supports both Cloud (atlassian.net) and Server/Data Center instances
+  * Automatic issue key extraction from PR descriptions
+  * Backlog fetches unresolved issues with configurable statuses (not in any sprint)
+  * Active sprint fetches issues in currently open sprints
+  * Create issue supports custom assignees, priorities, and labels
+  * Configurable backlog statuses to match your workflow (e.g., "Backlog,To Do,Open,Ready for Development")
 - Alternative to JIRA MCP server (simpler setup, works immediately)
 
 ### PR Review Feature

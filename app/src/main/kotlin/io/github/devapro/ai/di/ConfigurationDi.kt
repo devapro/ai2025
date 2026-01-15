@@ -75,6 +75,15 @@ val configurationModule = module {
         get<Dotenv>()["JIRA_API_TOKEN"] // Optional - can be null
     }
 
+    single(qualifier = named("jiraProjectKey")) {
+        get<Dotenv>()["JIRA_PROJECT_KEY"] // Optional - can be null
+    }
+
+    single(qualifier = named("jiraBacklogStatuses")) {
+        // Default statuses: Backlog, To Do, Open
+        get<Dotenv>()["JIRA_BACKLOG_STATUSES"] ?: "Backlog,To Do,Open"
+    }
+
     // ========================================
     // MCP Configuration
     // ========================================

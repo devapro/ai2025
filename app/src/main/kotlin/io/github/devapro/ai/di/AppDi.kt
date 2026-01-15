@@ -9,20 +9,20 @@ import io.github.devapro.ai.bot.TelegramBot
 import io.github.devapro.ai.tools.rag.RagSearchToolInterface
 import io.github.devapro.ai.tools.Tool
 import io.github.devapro.ai.tools.tools.CodeSearchTool
-import io.github.devapro.ai.tools.tools.DocumentWriterTool
 import io.github.devapro.ai.tools.tools.ExploringTool
 import io.github.devapro.ai.tools.tools.FindFileTool
 import io.github.devapro.ai.tools.tools.FolderStructureTool
 import io.github.devapro.ai.tools.tools.GitHubTool
 import io.github.devapro.ai.tools.tools.GitOperationTool
-import io.github.devapro.ai.tools.tools.JiraTool
+import io.github.devapro.ai.tools.jira.JiraGetIssueTool
+import io.github.devapro.ai.tools.jira.JiraGetBacklogTool
+import io.github.devapro.ai.tools.jira.JiraGetSprintTool
+import io.github.devapro.ai.tools.jira.JiraCreateIssueTool
 import io.github.devapro.ai.tools.tools.ReadFileTool
 import io.github.devapro.ai.tools.rag.ContextCompressor
-import io.github.devapro.ai.tools.rag.EnhancedRagSearchTool
 import io.github.devapro.ai.tools.rag.HybridSearchTool
 import io.github.devapro.ai.tools.rag.QueryExpander
 import io.github.devapro.ai.tools.rag.RagResultsRefiner
-import io.github.devapro.ai.tools.rag.RagSearchTool
 import io.github.devapro.ai.tools.rag.TokenCounter
 import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.mcp.config.McpConfigLoader
@@ -218,18 +218,44 @@ val appModule = module {
             httpClient = get(),
             workingDirectory = projectSourceDir
         ))
-        tools.add(DocumentWriterTool())  // Uses doc-source, not project-source
         tools.add(GitOperationTool(workingDirectory = projectSourceDir))  // Git operations for PR review
         tools.add(GitHubTool(
             httpClient = get(),
             githubToken = get(qualifier = named("githubToken"))
         ))  // GitHub API for PR details
-        tools.add(JiraTool(
+
+        // JIRA tools (4 separate focused tools)
+        tools.add(JiraGetIssueTool(
             httpClient = get(),
             jiraUrl = get(qualifier = named("jiraUrl")),
             jiraEmail = get(qualifier = named("jiraEmail")),
             jiraToken = get(qualifier = named("jiraApiToken"))
-        ))  // JIRA API for issue details
+        ))  // Get single JIRA issue
+
+        tools.add(JiraGetBacklogTool(
+            httpClient = get(),
+            jiraUrl = get(qualifier = named("jiraUrl")),
+            jiraEmail = get(qualifier = named("jiraEmail")),
+            jiraToken = get(qualifier = named("jiraApiToken")),
+            jiraProjectKey = get(qualifier = named("jiraProjectKey")),
+            jiraBacklogStatuses = get(qualifier = named("jiraBacklogStatuses"))
+        ))  // Get backlog tasks
+
+        tools.add(JiraGetSprintTool(
+            httpClient = get(),
+            jiraUrl = get(qualifier = named("jiraUrl")),
+            jiraEmail = get(qualifier = named("jiraEmail")),
+            jiraToken = get(qualifier = named("jiraApiToken")),
+            jiraProjectKey = get(qualifier = named("jiraProjectKey"))
+        ))  // Get active sprint tasks
+
+        tools.add(JiraCreateIssueTool(
+            httpClient = get(),
+            jiraUrl = get(qualifier = named("jiraUrl")),
+            jiraEmail = get(qualifier = named("jiraEmail")),
+            jiraToken = get(qualifier = named("jiraApiToken")),
+            jiraProjectKey = get(qualifier = named("jiraProjectKey"))
+        ))  // Create new JIRA issue
 
         tools
     }
