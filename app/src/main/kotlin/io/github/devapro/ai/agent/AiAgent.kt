@@ -15,12 +15,13 @@ import org.slf4j.LoggerFactory
  * AI Agent component that handles conversations using OpenAI API with MCP tool support
  */
 
-private const val modelName = "gpt-4o"
 private const val MAX_TOOL_ITERATIONS = 20
 private const val MAX_MESSAGES_IN_CONTEXT = 10
 
 class AiAgent(
     private val apiKey: String,
+    private val apiUrl: String,
+    private val model: String,
     private val fileRepository: FileRepository,
     private val mcpManager: McpManager,
     private val httpClient: HttpClient,
@@ -77,7 +78,7 @@ class AiAgent(
 
             // Create request
             val request = OpenAIRequest(
-                model = modelName,
+                model = model,
                 messages = messages,
                 temperature = 0.9,
                 stream = false,
@@ -85,7 +86,7 @@ class AiAgent(
             )
 
             // Call OpenAI API
-            val httpResponse = httpClient.post("https://api.openai.com/v1/chat/completions") {
+            val httpResponse = httpClient.post(apiUrl) {
                 header("Authorization", "Bearer $apiKey")
                 contentType(ContentType.Application.Json)
                 setBody(request)

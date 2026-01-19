@@ -272,6 +272,8 @@ val appModule = module {
     single {
         AiAgent(
             apiKey = get(qualifier = named("openAiApiKey")),
+            apiUrl = get(qualifier = named("openAiApiUrl")),
+            model = get(qualifier = named("openAiModel")),
             fileRepository = get(),
             mcpManager = get(),
             httpClient = get(),

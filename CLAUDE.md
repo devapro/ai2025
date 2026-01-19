@@ -33,11 +33,20 @@ The application uses environment variables from a `.env` file (copy from `.env.e
 - `OPENAI_API_KEY` - OpenAI API key for AI conversations
 - `TELEGRAM_BOT_TOKEN` - Bot token from @BotFather
 
-**Optional:**
+**Optional - AI Model Configuration:**
+- `OPENAI_API_URL` - API endpoint for chat completions (default: `https://api.openai.com/v1/chat/completions`)
+  - For local LLM (LM Studio): `http://127.0.0.1:1234/v1/chat/completions`
+  - For local LLM (Ollama): `http://localhost:11434/v1/chat/completions`
+- `OPENAI_MODEL` - Model name to use (default: `gpt-4o`)
+  - For local LLM: Set to your model name (e.g., `llama3`, `mistral`)
+
+**Optional - General:**
 - `PROMPTS_DIR` - Prompt files directory (default: `promts`)
 - `HISTORY_DIR` - Conversation history directory (default: `history`)
 - `PROJECT_SOURCE_DIR` - Project source code directory for file tools (default: `project-source`)
 - `MCP_CONFIG_PATH` - MCP configuration file (default: `mcp-config.json`)
+
+**Optional - RAG Configuration:**
 - `RAG_ENABLED` - Enable RAG document search (default: false)
 - `RAG_DATABASE_PATH` - Vector database path (default: `embeddings.db`)
 - `RAG_EMBEDDING_API_URL` - LM Studio endpoint (default: http://127.0.0.1:1234/v1/embeddings)
