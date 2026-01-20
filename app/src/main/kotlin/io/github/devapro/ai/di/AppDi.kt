@@ -130,6 +130,8 @@ val appModule = module {
     single {
         AiAgentConversationSummarizer(
             apiKey = get(qualifier = named("openAiApiKey")),
+            apiUrl = get(qualifier = named("openAiApiUrl")),
+            modelName = get(qualifier = named("openAiModel")),
             fileRepository = get(),
             httpClient = get()
         )
