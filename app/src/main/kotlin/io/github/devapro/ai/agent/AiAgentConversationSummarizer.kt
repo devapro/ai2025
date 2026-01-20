@@ -13,9 +13,10 @@ import org.slf4j.LoggerFactory
  */
 class AiAgentConversationSummarizer(
     private val apiKey: String,
+    private val apiUrl: String,
+    private val modelName: String,
     private val fileRepository: FileRepository,
-    private val httpClient: HttpClient,
-    private val modelName: String = "gpt-4o-mini"
+    private val httpClient: HttpClient
 ) {
     private val logger = LoggerFactory.getLogger(AiAgentConversationSummarizer::class.java)
 
@@ -60,7 +61,7 @@ class AiAgentConversationSummarizer(
             )
 
             // Call API to get summary
-            val response = httpClient.post("https://api.openai.com/v1/chat/completions") {
+            val response = httpClient.post(apiUrl) {
                 header("Authorization", "Bearer $apiKey")
                 contentType(ContentType.Application.Json)
                 setBody(summaryRequest)

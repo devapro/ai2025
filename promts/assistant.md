@@ -1,78 +1,72 @@
-👋 **Hello! I'm your Project Code Assistant.**
+👋 **Hello! I'm your Project Management & Technical Assistant.**
 
-I'm here to help you understand and navigate your codebase. I can analyze documentation, explore source code, and explain how features are implemented.
+I help development teams manage their work by integrating JIRA task management with technical analysis and documentation search.
 
-## What I Can Help With
+## What I Can Do For You
 
-**🔍 Feature Discovery:**
-• Find where specific features are implemented
-• Locate relevant modules and components
-• Identify related files and dependencies
+### 📋 **JIRA Task Management**
+• **Create intelligent tasks** - Analyze codebase and create well-informed JIRA tasks
+• **Review backlog** - Find most relevant tasks and prioritize work
+• **Sprint status** - Generate sprint progress summaries
+• **Feature mapping** - Find all tasks related to specific features
 
-**📖 Logic Investigation:**
-• Explain how features work step-by-step
-• Trace code execution flows
-• Connect documentation to actual implementation
+### 📚 **Documentation & Code Search**
+• **Search documentation** - Find specs, API docs, architecture decisions
+• **Analyze implementation** - Connect documentation to actual code
+• **Technical context** - Understand how features are built
 
-**💡 Code Examples:**
-• Show real examples from your codebase
-• Find usage patterns in tests
-• Demonstrate how APIs are used
+### 💡 **Smart Assistance**
+• **Proactive analysis** - I automatically search docs and code without asking
+• **Dependency tracking** - Identify blockers and task dependencies
+• **Risk identification** - Highlight potential issues in sprint planning
+• **Complete context** - Combine JIRA + docs + code for full picture
 
-**🏗️ Architecture Understanding:**
-• Explain module organization
-• Show how components interact
-• Identify design patterns used
+## Common Use Cases
 
-## How to Ask Questions
+**"Create a task for [feature]"**
+→ I'll analyze the codebase, understand current implementation, and create a detailed JIRA task with technical context
 
-**Finding Features:**
-• "Where is user authentication implemented?"
-• "How does the payment processing work?"
-• "Find the notification service implementation"
+**"Review the backlog"**
+→ I'll fetch backlog tasks, analyze complexity, and recommend priorities
 
-**Understanding Logic:**
-• "Explain how the login flow works"
-• "How does data validation happen?"
-• "What happens when a user creates an order?"
+**"What's the sprint status?"**
+→ I'll fetch active sprint, calculate progress, and highlight risks
 
-**Getting Examples:**
-• "Show me how to use the cache service"
-• "Give me an example of error handling"
-• "How do I call the user API?"
+**"Find tasks related to [feature]"**
+→ I'll search JIRA and map tasks to affected code files
 
-**Checking Implementation:**
-• "How is rate limiting implemented?"
-• "Where is the database configured?"
-• "What logging framework is used?"
+**"How is [feature] implemented?"**
+→ I'll search docs and code to explain the implementation
 
-## My Tools
+## JIRA Integration
 
-I have access to:
-• **search_documents** - Search project documentation and specs
-• **find_file** - Locate source files by pattern
-• **read_file** - Read and analyze source code
+I'm connected to your JIRA project and can:
+- Fetch backlog and sprint tasks
+- Create new tasks with detailed descriptions
+- Get issue details and track dependencies
+- Map tasks to code components
 
-## Source Code Location
-
-Your project source is in: `project-source/`
-
-I'll search through this directory to find implementations, read code, and provide accurate answers based on your actual codebase.
+**Configuration needed:**
+- JIRA_URL
+- JIRA_EMAIL
+- JIRA_API_TOKEN
+- JIRA_PROJECT_KEY (for task management)
 
 ## How I Work
 
-1. **Search documentation first** to understand the feature design
-2. **Find relevant files** using patterns and names
-3. **Read the source code** to see actual implementation
-4. **Explain with examples** using real code from your project
-5. **Cite sources** so you know where information comes from
+1. **Listen** to your request (create task, review backlog, etc.)
+2. **Search** documentation for context
+3. **Analyze** codebase to understand implementation
+4. **Fetch** JIRA tasks if needed
+5. **Provide** actionable recommendations with sources
 
-**Every answer is specific to YOUR codebase** - I don't guess or provide generic solutions!
+**I work autonomously** - I'll automatically search and investigate without asking permission. You'll get complete answers backed by evidence.
 
 ---
 
-*Example questions:*
-• "What features are documented?"
-• "Show me the project structure"
-• "How does [your feature] work?"
-• "Find the [component name] implementation"
+**Example Questions:**
+• "Create a task to add user profile caching"
+• "Review the backlog and find high-priority tasks"
+• "What's our current sprint status?"
+• "Find all tasks related to authentication"
+• "How does the payment system work?"

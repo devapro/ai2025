@@ -26,6 +26,14 @@ val configurationModule = module {
             ?: throw IllegalStateException("OPENAI_API_KEY environment variable is required")
     }
 
+    single(qualifier = named("openAiApiUrl")) {
+        get<Dotenv>()["OPENAI_API_URL"] ?: "https://api.openai.com/v1/chat/completions"
+    }
+
+    single(qualifier = named("openAiModel")) {
+        get<Dotenv>()["OPENAI_MODEL"] ?: "gpt-4o"
+    }
+
     single(qualifier = named("telegramBotToken")) {
         get<Dotenv>()["TELEGRAM_BOT_TOKEN"]
             ?: throw IllegalStateException("TELEGRAM_BOT_TOKEN environment variable is required")
@@ -73,6 +81,15 @@ val configurationModule = module {
 
     single(qualifier = named("jiraApiToken")) {
         get<Dotenv>()["JIRA_API_TOKEN"] // Optional - can be null
+    }
+
+    single(qualifier = named("jiraProjectKey")) {
+        get<Dotenv>()["JIRA_PROJECT_KEY"] // Optional - can be null
+    }
+
+    single(qualifier = named("jiraBacklogStatuses")) {
+        // Default statuses: Backlog, To Do, Open
+        get<Dotenv>()["JIRA_BACKLOG_STATUSES"] ?: "Backlog,To Do,Open"
     }
 
     // ========================================
