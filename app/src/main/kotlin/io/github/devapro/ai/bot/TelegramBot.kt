@@ -17,7 +17,9 @@ import org.slf4j.LoggerFactory
  */
 class TelegramBot(
     private val botToken: String,
-    private val aiAgent: AiAgent
+    private val aiAgent: AiAgent,
+    private val profileRepository: io.github.devapro.ai.repository.UserProfileRepository,
+    private val profileInterviewer: io.github.devapro.ai.agent.ProfileInterviewer
 ) {
     private val logger = LoggerFactory.getLogger(TelegramBot::class.java)
     private val coroutineScope = CoroutineScope(Dispatchers.Default)
@@ -63,10 +65,12 @@ class TelegramBot(
                         *Key Commands:*
                         • /review-pr <url> - Review a GitHub Pull Request
                         • /summary - Get today's schedule
+                        • /profile - View or setup your profile
                         • /clear - Clear conversation history
                         • /help - Show all available commands
 
                         *Pro Tips:*
+                        • Set up your profile for personalized responses
                         • Ask me anything about your codebase
                         • I can analyze code quality and security
                         • Configure GitHub/JIRA in mcp-config.json for enhanced features
@@ -88,6 +92,7 @@ class TelegramBot(
                         /start - Show welcome message
                         /summary - Get today's schedule and events
                         /review-pr - Review a GitHub Pull Request
+                        /profile - View or setup your profile
                         /clear - Clear conversation history
                         /help - Show this help message
 
@@ -121,6 +126,75 @@ class TelegramBot(
                     text = "✅ *Conversation history cleared!*",
                     parseMode = ParseMode.MARKDOWN
                 )
+            }
+
+            // Handle /profile command
+            command("profile") {
+                val chatId = message.chat.id
+                val args = message.text?.substringAfter("/profile")?.trim() ?: ""
+
+                logger.info("Profile command received from user $chatId, args: '$args'")
+
+                val profile = profileRepository.getUserProfile(chatId)
+
+                when {
+                    args == "update" || profile == null || !profile.isComplete -> {
+                        // Start or restart profile setup
+                        val welcomeMessage = if (args == "update") {
+                            "Let's update your profile! Starting fresh interview..."
+                        } else {
+                            """
+                                👋 Welcome! Let me learn a bit about you to personalize your experience.
+
+                                I'll ask you a few quick questions. Ready to start?
+                            """.trimIndent()
+                        }
+
+                        bot.sendMessage(
+                            chatId = ChatId.fromId(chatId),
+                            text = welcomeMessage,
+                            parseMode = ParseMode.MARKDOWN
+                        )
+
+                        // Clear setup state if updating
+                        if (args == "update") {
+                            profileRepository.clearSetupState(chatId)
+                        }
+
+                        // Start interview in coroutine
+                        coroutineScope.launch {
+                            try {
+                                val response = profileInterviewer.conductInterview(chatId, "I'm ready!")
+                                sendMessageSafely(chatId, response)
+                            } catch (e: Exception) {
+                                logger.error("Error starting profile interview: ${e.message}", e)
+                                sendMessageSafely(chatId, "Sorry, I encountered an error. Please try /profile again.")
+                            }
+                        }
+                    }
+                    else -> {
+                        // Show existing profile
+                        val profileText = buildString {
+                            appendLine("📋 *Your Profile*")
+                            appendLine()
+                            profile.name?.let { appendLine("**Name:** $it") }
+                            profile.role?.let { appendLine("**Role:** $it") }
+                            profile.timezone?.let { appendLine("**Timezone:** $it") }
+                            profile.language?.let { appendLine("**Language:** $it") }
+                            profile.formality?.let { appendLine("**Style:** $it") }
+                            profile.verbosity?.let { appendLine("**Verbosity:** $it") }
+                            profile.useEmoji?.let { appendLine("**Emoji:** ${if (it) "Yes" else "No"}") }
+                            appendLine()
+                            appendLine("To update your profile, use `/profile update`")
+                        }
+
+                        bot.sendMessage(
+                            chatId = ChatId.fromId(chatId),
+                            text = profileText,
+                            parseMode = ParseMode.MARKDOWN
+                        )
+                    }
+                }
             }
 
             // Handle /summary command
@@ -218,10 +292,67 @@ class TelegramBot(
 
                 logger.info("Received message from user $chatId: $userMessage")
 
-                // Send typing indicator
+                // Check if user is in profile interview
+                val setupState = profileRepository.getSetupState(chatId)
+                if (setupState != null && setupState.isInSetup) {
+                    // Continue interview
+                    logger.info("User $chatId is in profile setup, continuing interview")
+                    bot.sendChatAction(ChatId.fromId(chatId), com.github.kotlintelegrambot.entities.ChatAction.TYPING)
+
+                    coroutineScope.launch {
+                        try {
+                            val response = profileInterviewer.conductInterview(chatId, userMessage)
+                            sendMessageSafely(chatId, response)
+                        } catch (e: Exception) {
+                            logger.error("Error in profile interview: ${e.message}", e)
+                            sendMessageSafely(chatId, "Sorry, I encountered an error. Let's continue - please answer again.")
+                        }
+                    }
+                    return@text
+                }
+
+                // Check if this is first message (no profile)
+                if (!profileRepository.profileExists(chatId)) {
+                    logger.info("First message from new user $chatId, starting auto-interview")
+
+                    // Start automatic interview
+                    bot.sendMessage(
+                        chatId = ChatId.fromId(chatId),
+                        text = """
+                            👋 Hi! I'm your AI Project Assistant.
+
+                            Before we begin, let me quickly learn about you to personalize our conversations.
+                            This will only take a minute!
+                        """.trimIndent(),
+                        parseMode = ParseMode.MARKDOWN
+                    )
+
+                    // Send typing indicator
+                    bot.sendChatAction(ChatId.fromId(chatId), com.github.kotlintelegrambot.entities.ChatAction.TYPING)
+
+                    // Start interview
+                    coroutineScope.launch {
+                        try {
+                            val response = profileInterviewer.conductInterview(chatId, userMessage)
+                            sendMessageSafely(chatId, response)
+                        } catch (e: Exception) {
+                            logger.error("Error in auto-interview: ${e.message}", e)
+                            // Fall back to normal processing
+                            sendMessageSafely(chatId, "Sorry, I couldn't start the profile setup. Let me answer your question anyway...")
+                            try {
+                                val response = aiAgent.processMessage(chatId, userMessage)
+                                sendMessageSafely(chatId, response)
+                            } catch (e2: Exception) {
+                                logger.error("Error in fallback processing: ${e2.message}", e2)
+                            }
+                        }
+                    }
+                    return@text
+                }
+
+                // Normal message processing
                 bot.sendChatAction(ChatId.fromId(chatId), com.github.kotlintelegrambot.entities.ChatAction.TYPING)
 
-                // Process message with AI agent in coroutine
                 coroutineScope.launch {
                     try {
                         val response = aiAgent.processMessage(chatId, userMessage)
