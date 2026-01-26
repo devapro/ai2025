@@ -2,6 +2,7 @@ package io.github.devapro.ai.agent
 
 import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.repository.FileRepository
+import io.github.devapro.ai.repository.UserProfileRepository
 import io.github.devapro.ai.tools.rag.SimpleMessage
 import io.github.devapro.ai.tools.rag.TokenCounter
 import io.ktor.client.*
@@ -27,7 +28,8 @@ class AiAgent(
     private val conversationSummarizer: AiAgentConversationSummarizer,
     private val responseFormatter: AiAgentResponseFormatter,
     private val tokenCounter: TokenCounter,
-    private val toolProvider: ToolProvider
+    private val toolProvider: ToolProvider,
+    private val profileRepository: UserProfileRepository
 ) {
     private val logger = LoggerFactory.getLogger(AiAgent::class.java)
 
@@ -41,13 +43,16 @@ class AiAgent(
         // Get system prompt
         val systemPrompt = fileRepository.getSystemPrompt()
 
+        // Enhance system prompt with user profile context
+        val enhancedSystemPrompt = enhanceSystemPromptWithProfile(userId, systemPrompt)
+
         // Get conversation history
         val history = fileRepository.getUserHistory(userId)
         val historyLength = history.size
 
         // Build initial messages list
         val messages = mutableListOf<OpenAIMessage>()
-        messages.add(OpenAIMessage(role = "system", content = systemPrompt))
+        messages.add(OpenAIMessage(role = "system", content = enhancedSystemPrompt))
 
         // Add conversation history
         history.forEach { msg ->
@@ -252,6 +257,53 @@ class AiAgent(
      */
     fun clearHistory(userId: Long) {
         fileRepository.clearUserHistory(userId)
+    }
+
+    /**
+     * Enhance system prompt with user profile context
+     * Adds personalization information if profile exists and is complete
+     */
+    private fun enhanceSystemPromptWithProfile(userId: Long, basePrompt: String): String {
+        val profile = profileRepository.getUserProfile(userId)
+
+        // If no profile or incomplete, return base prompt unchanged
+        if (profile == null || !profile.isComplete) {
+            return basePrompt
+        }
+
+        // Build profile context section
+        val profileContext = buildString {
+            appendLine()
+            appendLine("## User Profile")
+            appendLine()
+
+            profile.name?.let { appendLine("- **Name**: $it") }
+            profile.role?.let { appendLine("- **Role**: $it") }
+            profile.timezone?.let { appendLine("- **Timezone**: $it") }
+            profile.language?.let { appendLine("- **Language**: $it") }
+            profile.formality?.let { appendLine("- **Communication Style**: $it") }
+            profile.verbosity?.let {
+                val description = when (it) {
+                    "concise" -> "User prefers short, concise responses"
+                    "balanced" -> "User prefers balanced responses (neither too short nor too long)"
+                    "detailed" -> "User prefers detailed, comprehensive responses"
+                    else -> "Response Length: $it"
+                }
+                appendLine("- **Response Length**: $description")
+            }
+            profile.useEmoji?.let {
+                if (it) {
+                    appendLine("- **Emoji**: User appreciates emoji in responses")
+                } else {
+                    appendLine("- **Emoji**: User prefers text-only responses without emoji")
+                }
+            }
+
+            appendLine()
+            appendLine("**Instructions**: Adapt your responses to match the user's preferences listed above.")
+        }
+
+        return basePrompt + profileContext
     }
 
     fun close() {

@@ -126,6 +126,22 @@ val appModule = module {
         )
     }
 
+    // User profile repository
+    single {
+        io.github.devapro.ai.repository.UserProfileRepository(
+            profilesDir = get(qualifier = named("profilesDir"))
+        )
+    }
+
+    // Profile interviewer
+    single {
+        io.github.devapro.ai.agent.ProfileInterviewer(
+            apiKey = get(qualifier = named("openAiApiKey")),
+            httpClient = get(),
+            profileRepository = get()
+        )
+    }
+
     // Conversation summarizer component
     single {
         AiAgentConversationSummarizer(
@@ -252,7 +268,8 @@ val appModule = module {
             conversationSummarizer = get(),
             responseFormatter = get(),
             tokenCounter = get(),
-            toolProvider = get()
+            toolProvider = get(),
+            profileRepository = get()
         )
     }
 
@@ -260,7 +277,9 @@ val appModule = module {
     single {
         TelegramBot(
             botToken = get(qualifier = named("telegramBotToken")),
-            aiAgent = get()
+            aiAgent = get(),
+            profileRepository = get(),
+            profileInterviewer = get()
         )
     }
 
