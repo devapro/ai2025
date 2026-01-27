@@ -167,4 +167,20 @@ val configurationModule = module {
     single(qualifier = named("voiceSampleRate")) {
         get<Dotenv>()["VOICE_SAMPLE_RATE"]?.toIntOrNull() ?: 16000  // Hz
     }
+
+    // ========================================
+    // Voice Input Silence Detection Configuration
+    // ========================================
+
+    single(qualifier = named("voiceAutoStopOnSilence")) {
+        get<Dotenv>()["VOICE_AUTO_STOP_ON_SILENCE"]?.toBoolean() ?: true
+    }
+
+    single(qualifier = named("voiceSilenceThreshold")) {
+        get<Dotenv>()["VOICE_SILENCE_THRESHOLD"]?.toDoubleOrNull() ?: 300.0
+    }
+
+    single(qualifier = named("voiceSilenceDuration")) {
+        get<Dotenv>()["VOICE_SILENCE_DURATION"]?.toIntOrNull() ?: 5  // seconds
+    }
 }

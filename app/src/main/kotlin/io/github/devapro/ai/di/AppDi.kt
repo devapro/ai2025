@@ -286,7 +286,10 @@ val appModule = module {
         if (voiceEnabled) {
             AudioRecorder(
                 sampleRate = get(qualifier = named("voiceSampleRate")),
-                maxDuration = get(qualifier = named("voiceMaxDuration"))
+                maxDuration = get(qualifier = named("voiceMaxDuration")),
+                autoStopOnSilence = get(qualifier = named("voiceAutoStopOnSilence")),
+                silenceThreshold = get(qualifier = named("voiceSilenceThreshold")),
+                silenceDuration = get(qualifier = named("voiceSilenceDuration"))
             )
         } else {
             null
