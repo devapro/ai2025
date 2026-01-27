@@ -53,3 +53,5 @@ project-source/
 doc-source/
 /doc-source-test/
 /embeddings_test.db
+/project-source/
+/profiles/
