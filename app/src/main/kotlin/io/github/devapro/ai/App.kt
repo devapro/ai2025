@@ -1,20 +1,20 @@
 package io.github.devapro.ai
 
-import io.github.devapro.ai.bot.TelegramBot
+import io.github.devapro.ai.cli.CliInterface
 import io.github.devapro.ai.di.allModules
 import io.github.devapro.ai.mcp.McpManager
-import io.github.devapro.ai.scheduler.DailySummaryScheduler
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.logger.slf4jLogger
 import org.koin.mp.KoinPlatformTools
 import org.slf4j.LoggerFactory
+import kotlin.system.exitProcess
 
 fun main() {
     val logger = LoggerFactory.getLogger("App")
 
-    logger.info("Starting AI Telegram Bot application...")
+    logger.info("Starting AI Assistant CLI application...")
 
     try {
         // Start Koin DI
@@ -29,8 +29,7 @@ fun main() {
         val koin = KoinPlatformTools.defaultContext().get()
 
         val mcpManager = koin.get<McpManager>()
-        val telegramBot = koin.get<TelegramBot>()
-        val dailySummaryScheduler = koin.get<DailySummaryScheduler>()
+        val cliInterface = koin.get<CliInterface>()
         val shutdownManager = koin.get<AppShutDownManager>()
 
         logger.info("All components initialized via DI")
@@ -44,30 +43,20 @@ fun main() {
         if (mcpManager.isAvailable()) {
             logger.info("MCP tools are available")
         } else {
-            logger.info("No MCP servers available - running without tools")
+            logger.warn("No MCP servers available - running without external tools")
         }
 
         // Register shutdown hook
         shutdownManager.registerShutdownHook()
 
-        // Start the bot
-        telegramBot.start()
+        // Start the CLI interface (blocks until user exits)
+        logger.info("Starting CLI interface...")
+        cliInterface.start()
 
-        // Start the daily summary scheduler
-   //     dailySummaryScheduler.start()
-
-        // For testing
-//        runBlocking {
-//            dailySummaryScheduler.triggerManualSummary()
-//        }
-
-        logger.info("Application started successfully!")
-
-        // Keep the application running
-        Thread.currentThread().join()
+        logger.info("CLI interface stopped")
     } catch (e: Exception) {
         logger.error("Fatal error: ${e.message}", e)
         stopKoin()
-        throw e
+        exitProcess(1)
     }
 }

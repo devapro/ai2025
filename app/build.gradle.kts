@@ -21,8 +21,9 @@ dependencies {
     // Ktor client for HTTP communication
     implementation(libs.bundles.ktorClient)
 
-    // Telegram bot library
-    implementation(libs.telegramBot)
+    // CLI libraries
+    implementation("org.jline:jline:3.24.1")
+    implementation("com.github.ajalt.mordant:mordant:2.2.0")
 
     // Environment variables management
     implementation(libs.dotenv)

@@ -12,8 +12,18 @@ import org.koin.dsl.module
 val configurationModule = module {
     // Dotenv instance for loading environment variables
     single<Dotenv> {
+        // Find project root (.env is in project root, not app subdirectory)
+        val projectRoot = java.io.File(System.getProperty("user.dir"))
+        val dotenvDir = if (projectRoot.name == "app") {
+            projectRoot.parent  // Go up one level if we're in the app directory
+        } else {
+            projectRoot.absolutePath  // Already in project root
+        }
+
         dotenv {
-            ignoreIfMissing = true
+            directory = dotenvDir
+            ignoreIfMissing = false  // Fail fast if .env is missing
+            systemProperties = true  // Also load from system properties
         }
     }
 
@@ -26,9 +36,8 @@ val configurationModule = module {
             ?: throw IllegalStateException("OPENAI_API_KEY environment variable is required")
     }
 
-    single(qualifier = named("telegramBotToken")) {
-        get<Dotenv>()["TELEGRAM_BOT_TOKEN"]
-            ?: throw IllegalStateException("TELEGRAM_BOT_TOKEN environment variable is required")
+    single(qualifier = named("cliUserId")) {
+        get<Dotenv>()["CLI_USER_ID"] ?: "cli-user"
     }
 
     // ========================================
@@ -85,18 +94,6 @@ val configurationModule = module {
 
     single(qualifier = named("mcpConfigPath")) {
         get<Dotenv>()["MCP_CONFIG_PATH"] ?: "mcp-config.json"
-    }
-
-    // ========================================
-    // Daily Summary Scheduler Configuration
-    // ========================================
-
-    single(qualifier = named("dailySummaryHour")) {
-        get<Dotenv>()["DAILY_SUMMARY_HOUR"]?.toIntOrNull() ?: 10
-    }
-
-    single(qualifier = named("dailySummaryMinute")) {
-        get<Dotenv>()["DAILY_SUMMARY_MINUTE"]?.toIntOrNull() ?: 0
     }
 
     // ========================================
