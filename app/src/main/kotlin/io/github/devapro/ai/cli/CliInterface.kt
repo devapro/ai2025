@@ -1,6 +1,7 @@
 package io.github.devapro.ai.cli
 
 import io.github.devapro.ai.agent.AiAgent
+import io.github.devapro.ai.cli.audio.VoiceInputHandler
 import io.github.devapro.ai.repository.FileRepository
 import io.github.devapro.ai.repository.UserProfileRepository
 import kotlinx.coroutines.runBlocking
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory
  * - Command parsing and routing
  * - Integration with AiAgent
  * - Profile setup check
+ * - Voice input support (optional)
  * - Error handling
  */
 class CliInterface(
@@ -26,6 +28,7 @@ class CliInterface(
     private val profileSetup: CliProfileSetup,
     private val profileRepository: UserProfileRepository,
     private val fileRepository: FileRepository,
+    private val voiceInputHandler: VoiceInputHandler?,
     private val userId: Long
 ) {
     private val logger = LoggerFactory.getLogger(CliInterface::class.java)
@@ -180,6 +183,10 @@ class CliInterface(
                 getSummary()
                 false
             }
+            "/voice" -> {
+                handleVoiceCommand(lineReader)
+                false
+            }
             "/exit", "/quit" -> {
                 true
             }
@@ -205,6 +212,7 @@ class CliInterface(
         outputFormatter.println("  /review-pr <url>      - Review GitHub Pull Request")
         outputFormatter.println("  /summary              - Get summary of tasks and events")
         outputFormatter.println("  /history              - Show recent conversation history")
+        outputFormatter.println("  /voice                - Use voice input (speak your question)")
         outputFormatter.println("  /exit or /quit        - Exit the application")
         outputFormatter.println()
         outputFormatter.println(outputFormatter.formatSystemMessage("Tips:"))
@@ -334,6 +342,47 @@ Please be thorough and professional in your review.
     private suspend fun getSummary() {
         val prompt = "Please provide a summary of all events and tasks for today, including any deadlines or important items."
         processUserMessage(prompt)
+    }
+
+    /**
+     * Handle voice input command
+     * Records audio from microphone and transcribes to text
+     */
+    private suspend fun handleVoiceCommand(lineReader: org.jline.reader.LineReader) {
+        // Check if voice input is enabled
+        if (voiceInputHandler == null) {
+            outputFormatter.println(outputFormatter.formatError(
+                "Voice input is not enabled. Set VOICE_ENABLED=true in .env"
+            ))
+            return
+        }
+
+        try {
+            // Capture and transcribe voice input
+            // Pass a lambda that waits for Enter key to stop recording
+            val transcribedText = voiceInputHandler.captureVoiceInput {
+                // Wait for Enter key press (blocks until user presses Enter)
+                lineReader.readLine("")
+            }
+
+            if (transcribedText != null) {
+                // Display what was heard
+                outputFormatter.println(outputFormatter.formatUserMessage(transcribedText))
+                outputFormatter.printSeparator()
+
+                // Process as normal message
+                processUserMessage(transcribedText)
+            } else {
+                outputFormatter.println(outputFormatter.formatSystemMessage(
+                    "Voice input cancelled."
+                ))
+            }
+        } catch (e: Exception) {
+            logger.error("Voice input error", e)
+            outputFormatter.println(outputFormatter.formatError(
+                "Voice input failed: ${e.message}"
+            ))
+        }
     }
 
     /**

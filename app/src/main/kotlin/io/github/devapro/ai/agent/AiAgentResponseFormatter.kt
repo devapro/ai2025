@@ -7,6 +7,8 @@ package io.github.devapro.ai.agent
 class AiAgentResponseFormatter(
     private val modelName: String = "gpt-4o-mini"
 ) {
+    private val logger = org.slf4j.LoggerFactory.getLogger(AiAgentResponseFormatter::class.java)
+
     /**
      * Format plain text response with statistics
      */
@@ -17,9 +19,25 @@ class AiAgentResponseFormatter(
         estimatedTokens: Int,
         historyLength: Int
     ): String {
+        logger.info("formatResponse called: responseTime=${responseTime}ms, tokens=${usage?.totalTokens}")
+        logger.debug("Raw response length: ${rawResponse.length} chars")
+
+        // Check if response already contains statistics (potential double-formatting bug)
+        if (rawResponse.contains("\n\n---\n\n") && rawResponse.contains("📊")) {
+            logger.warn("⚠️  Raw response already contains statistics block! This indicates double-formatting bug.")
+            logger.warn("Response preview: ${rawResponse.takeLast(200)}")
+        }
+
         // Handle empty response
         if (rawResponse.isBlank()) {
             return "I'm here to help! Please ask me a question and I'll do my best to provide a helpful answer."
+        }
+
+        // SAFETY CHECK: If response already has statistics, don't add more
+        // This prevents double-formatting bug
+        if (rawResponse.contains("\n\n---\n\n") && rawResponse.contains("📊")) {
+            logger.error("Preventing double-formatting! Returning raw response as-is.")
+            return rawResponse
         }
 
         return buildString {

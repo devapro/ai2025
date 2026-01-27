@@ -8,6 +8,9 @@ import io.github.devapro.ai.agent.ToolProvider
 import io.github.devapro.ai.cli.CliInterface
 import io.github.devapro.ai.cli.CliOutputFormatter
 import io.github.devapro.ai.cli.CliProfileSetup
+import io.github.devapro.ai.cli.audio.AudioRecorder
+import io.github.devapro.ai.cli.audio.VoiceInputHandler
+import io.github.devapro.ai.cli.audio.WhisperService
 import io.github.devapro.ai.tools.rag.RagSearchToolInterface
 import io.github.devapro.ai.tools.Tool
 import io.github.devapro.ai.tools.tools.CodeSearchTool
@@ -277,6 +280,47 @@ val appModule = module {
         )
     }
 
+    // Voice input components (conditional on VOICE_ENABLED)
+    single<AudioRecorder?> {
+        val voiceEnabled: Boolean = get(qualifier = named("voiceEnabled"))
+        if (voiceEnabled) {
+            AudioRecorder(
+                sampleRate = get(qualifier = named("voiceSampleRate")),
+                maxDuration = get(qualifier = named("voiceMaxDuration"))
+            )
+        } else {
+            null
+        }
+    }
+
+    single<WhisperService?> {
+        val voiceEnabled: Boolean = get(qualifier = named("voiceEnabled"))
+        if (voiceEnabled) {
+            WhisperService(
+                apiKey = get(qualifier = named("openAiApiKey")),
+                httpClient = get()
+            )
+        } else {
+            null
+        }
+    }
+
+    single<VoiceInputHandler?> {
+        val voiceEnabled: Boolean = get(qualifier = named("voiceEnabled"))
+        val audioRecorder: AudioRecorder? = get()
+        val whisperService: WhisperService? = get()
+
+        if (voiceEnabled && audioRecorder != null && whisperService != null) {
+            VoiceInputHandler(
+                audioRecorder = audioRecorder,
+                whisperService = whisperService,
+                outputFormatter = get()
+            )
+        } else {
+            null
+        }
+    }
+
     single {
         CliInterface(
             aiAgent = get(),
@@ -284,6 +328,7 @@ val appModule = module {
             profileSetup = get(),
             profileRepository = get(),
             fileRepository = get(),
+            voiceInputHandler = get(),
             userId = get<String>(qualifier = named("cliUserId")).hashCode().toLong()
         )
     }

@@ -151,4 +151,20 @@ val configurationModule = module {
     single(qualifier = named("ragLlmModel")) {
         get<Dotenv>()["RAG_LLM_MODEL"] ?: "gpt-4o-mini"
     }
+
+    // ========================================
+    // Voice Input Configuration
+    // ========================================
+
+    single(qualifier = named("voiceEnabled")) {
+        get<Dotenv>()["VOICE_ENABLED"]?.toBoolean() ?: true
+    }
+
+    single(qualifier = named("voiceMaxDuration")) {
+        get<Dotenv>()["VOICE_MAX_DURATION"]?.toIntOrNull() ?: 30  // seconds
+    }
+
+    single(qualifier = named("voiceSampleRate")) {
+        get<Dotenv>()["VOICE_SAMPLE_RATE"]?.toIntOrNull() ?: 16000  // Hz
+    }
 }
