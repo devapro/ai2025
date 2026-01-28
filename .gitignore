@@ -55,3 +55,4 @@ doc-source/
 /embeddings_test.db
 /project-source/
 /profiles/
+/app/embeddings.db
