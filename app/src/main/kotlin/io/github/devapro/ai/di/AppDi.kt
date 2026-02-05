@@ -5,7 +5,12 @@ import io.github.devapro.ai.agent.AiAgent
 import io.github.devapro.ai.agent.AiAgentConversationSummarizer
 import io.github.devapro.ai.agent.AiAgentResponseFormatter
 import io.github.devapro.ai.agent.ToolProvider
-import io.github.devapro.ai.bot.TelegramBot
+import io.github.devapro.ai.cli.CliInterface
+import io.github.devapro.ai.cli.CliOutputFormatter
+import io.github.devapro.ai.cli.CliProfileSetup
+import io.github.devapro.ai.cli.audio.AudioRecorder
+import io.github.devapro.ai.cli.audio.VoiceInputHandler
+import io.github.devapro.ai.cli.audio.WhisperService
 import io.github.devapro.ai.tools.rag.RagSearchToolInterface
 import io.github.devapro.ai.tools.Tool
 import io.github.devapro.ai.tools.tools.CodeSearchTool
@@ -27,7 +32,6 @@ import io.github.devapro.ai.tools.rag.TokenCounter
 import io.github.devapro.ai.mcp.McpManager
 import io.github.devapro.ai.mcp.config.McpConfigLoader
 import io.github.devapro.ai.repository.FileRepository
-import io.github.devapro.ai.scheduler.DailySummaryScheduler
 import io.github.devapro.ai.embeds.rag.EmbeddingGenerator
 import io.github.devapro.ai.embeds.rag.VectorDatabase
 import io.ktor.client.*
@@ -123,6 +127,13 @@ val appModule = module {
             promptsDir = get(qualifier = named("promptsDir")),
             historyDir = get(qualifier = named("historyDir")),
             usersFilePath = get(qualifier = named("usersFilePath"))
+        )
+    }
+
+    // User profile repository
+    single {
+        io.github.devapro.ai.repository.UserProfileRepository(
+            profilesDir = get(qualifier = named("profilesDir"))
         )
     }
 
@@ -252,35 +263,83 @@ val appModule = module {
             conversationSummarizer = get(),
             responseFormatter = get(),
             tokenCounter = get(),
-            toolProvider = get()
+            toolProvider = get(),
+            profileRepository = get()
         )
     }
 
-    // Bot layer
+    // CLI components
     single {
-        TelegramBot(
-            botToken = get(qualifier = named("telegramBotToken")),
-            aiAgent = get()
+        CliOutputFormatter()
+    }
+
+    single {
+        CliProfileSetup(
+            profileRepository = get(),
+            outputFormatter = get()
         )
     }
 
-    // Scheduler layer
+    // Voice input components (conditional on VOICE_ENABLED)
+    single<AudioRecorder?> {
+        val voiceEnabled: Boolean = get(qualifier = named("voiceEnabled"))
+        if (voiceEnabled) {
+            AudioRecorder(
+                sampleRate = get(qualifier = named("voiceSampleRate")),
+                maxDuration = get(qualifier = named("voiceMaxDuration")),
+                autoStopOnSilence = get(qualifier = named("voiceAutoStopOnSilence")),
+                silenceThreshold = get(qualifier = named("voiceSilenceThreshold")),
+                silenceDuration = get(qualifier = named("voiceSilenceDuration"))
+            )
+        } else {
+            null
+        }
+    }
+
+    single<WhisperService?> {
+        val voiceEnabled: Boolean = get(qualifier = named("voiceEnabled"))
+        if (voiceEnabled) {
+            WhisperService(
+                apiKey = get(qualifier = named("openAiApiKey")),
+                httpClient = get()
+            )
+        } else {
+            null
+        }
+    }
+
+    single<VoiceInputHandler?> {
+        val voiceEnabled: Boolean = get(qualifier = named("voiceEnabled"))
+        val audioRecorder: AudioRecorder? = get()
+        val whisperService: WhisperService? = get()
+
+        if (voiceEnabled && audioRecorder != null && whisperService != null) {
+            VoiceInputHandler(
+                audioRecorder = audioRecorder,
+                whisperService = whisperService,
+                outputFormatter = get()
+            )
+        } else {
+            null
+        }
+    }
+
     single {
-        DailySummaryScheduler(
+        CliInterface(
             aiAgent = get(),
+            outputFormatter = get(),
+            profileSetup = get(),
+            profileRepository = get(),
             fileRepository = get(),
-            bot = get<TelegramBot>().bot,
-            targetHour = get(qualifier = named("dailySummaryHour")),
-            targetMinute = get(qualifier = named("dailySummaryMinute"))
+            voiceInputHandler = get(),
+            userId = get<String>(qualifier = named("cliUserId")).hashCode().toLong()
         )
     }
 
     // Shutdown manager
     single {
         AppShutDownManager(
-            dailySummaryScheduler = get(),
             mcpManager = get(),
-            telegramBot = get(),
             aiAgent = get(),
             httpClient = get()
         )

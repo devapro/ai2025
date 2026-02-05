@@ -12,8 +12,18 @@ import org.koin.dsl.module
 val configurationModule = module {
     // Dotenv instance for loading environment variables
     single<Dotenv> {
+        // Find project root (.env is in project root, not app subdirectory)
+        val projectRoot = java.io.File(System.getProperty("user.dir"))
+        val dotenvDir = if (projectRoot.name == "app") {
+            projectRoot.parent  // Go up one level if we're in the app directory
+        } else {
+            projectRoot.absolutePath  // Already in project root
+        }
+
         dotenv {
-            ignoreIfMissing = true
+            directory = dotenvDir
+            ignoreIfMissing = false  // Fail fast if .env is missing
+            systemProperties = true  // Also load from system properties
         }
     }
 
@@ -26,9 +36,8 @@ val configurationModule = module {
             ?: throw IllegalStateException("OPENAI_API_KEY environment variable is required")
     }
 
-    single(qualifier = named("telegramBotToken")) {
-        get<Dotenv>()["TELEGRAM_BOT_TOKEN"]
-            ?: throw IllegalStateException("TELEGRAM_BOT_TOKEN environment variable is required")
+    single(qualifier = named("cliUserId")) {
+        get<Dotenv>()["CLI_USER_ID"] ?: "cli-user"
     }
 
     // ========================================
@@ -45,6 +54,10 @@ val configurationModule = module {
 
     single(qualifier = named("usersFilePath")) {
         get<Dotenv>()["USERS_FILE_PATH"] ?: "users.md"
+    }
+
+    single(qualifier = named("profilesDir")) {
+        get<Dotenv>()["PROFILES_DIR"] ?: "profiles"
     }
 
     single(qualifier = named("projectSourceDir")) {
@@ -81,18 +94,6 @@ val configurationModule = module {
 
     single(qualifier = named("mcpConfigPath")) {
         get<Dotenv>()["MCP_CONFIG_PATH"] ?: "mcp-config.json"
-    }
-
-    // ========================================
-    // Daily Summary Scheduler Configuration
-    // ========================================
-
-    single(qualifier = named("dailySummaryHour")) {
-        get<Dotenv>()["DAILY_SUMMARY_HOUR"]?.toIntOrNull() ?: 10
-    }
-
-    single(qualifier = named("dailySummaryMinute")) {
-        get<Dotenv>()["DAILY_SUMMARY_MINUTE"]?.toIntOrNull() ?: 0
     }
 
     // ========================================
@@ -149,5 +150,37 @@ val configurationModule = module {
 
     single(qualifier = named("ragLlmModel")) {
         get<Dotenv>()["RAG_LLM_MODEL"] ?: "gpt-4o-mini"
+    }
+
+    // ========================================
+    // Voice Input Configuration
+    // ========================================
+
+    single(qualifier = named("voiceEnabled")) {
+        get<Dotenv>()["VOICE_ENABLED"]?.toBoolean() ?: true
+    }
+
+    single(qualifier = named("voiceMaxDuration")) {
+        get<Dotenv>()["VOICE_MAX_DURATION"]?.toIntOrNull() ?: 30  // seconds
+    }
+
+    single(qualifier = named("voiceSampleRate")) {
+        get<Dotenv>()["VOICE_SAMPLE_RATE"]?.toIntOrNull() ?: 16000  // Hz
+    }
+
+    // ========================================
+    // Voice Input Silence Detection Configuration
+    // ========================================
+
+    single(qualifier = named("voiceAutoStopOnSilence")) {
+        get<Dotenv>()["VOICE_AUTO_STOP_ON_SILENCE"]?.toBoolean() ?: true
+    }
+
+    single(qualifier = named("voiceSilenceThreshold")) {
+        get<Dotenv>()["VOICE_SILENCE_THRESHOLD"]?.toDoubleOrNull() ?: 300.0
+    }
+
+    single(qualifier = named("voiceSilenceDuration")) {
+        get<Dotenv>()["VOICE_SILENCE_DURATION"]?.toIntOrNull() ?: 5  // seconds
     }
 }

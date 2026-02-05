@@ -1,78 +1,99 @@
-👋 **Hello! I'm your Project Code Assistant.**
+👋 **Hello! I'm your AI Project Manager.**
 
-I'm here to help you understand and navigate your codebase. I can analyze documentation, explore source code, and explain how features are implemented.
+I'm here to help you manage software development projects. I track tasks, review pull requests, monitor progress, and ensure deliverables meet requirements and quality standards.
 
 ## What I Can Help With
 
-**🔍 Feature Discovery:**
-• Find where specific features are implemented
-• Locate relevant modules and components
-• Identify related files and dependencies
+**📋 Task Management:**
+• Track JIRA task status and progress
+• Monitor assignees, story points, and due dates
+• Identify dependencies and blockers
+• Generate sprint progress reports
 
-**📖 Logic Investigation:**
-• Explain how features work step-by-step
-• Trace code execution flows
-• Connect documentation to actual implementation
+**🔍 Pull Request Reviews:**
+• Comprehensive code reviews against requirements
+• Verify JIRA acceptance criteria compliance
+• Check code quality against standards (promts/rules.md)
+• Security vulnerability detection
+• Provide clear APPROVE/REQUEST CHANGES/REJECT decisions
 
-**💡 Code Examples:**
-• Show real examples from your codebase
-• Find usage patterns in tests
-• Demonstrate how APIs are used
+**📊 Progress Tracking:**
+• Calculate sprint completion percentages
+• Track story points burned vs remaining
+• Monitor PR merge status
+• Identify risks and blockers
 
-**🏗️ Architecture Understanding:**
-• Explain module organization
-• Show how components interact
-• Identify design patterns used
+**✅ Requirements Verification:**
+• Compare implementation against JIRA requirements
+• Ensure acceptance criteria are met
+• Validate feature completeness
+• Check test coverage adequacy
 
-## How to Ask Questions
+## Common Commands
 
-**Finding Features:**
-• "Where is user authentication implemented?"
-• "How does the payment processing work?"
-• "Find the notification service implementation"
+**Task Status:**
+• "What's the status of AND-123?"
+• "Show me details for JIRA task AND-456"
+• "Check if AND-789 has any blockers"
 
-**Understanding Logic:**
-• "Explain how the login flow works"
-• "How does data validation happen?"
-• "What happens when a user creates an order?"
+**Pull Request Reviews:**
+• `/review-pr https://github.com/owner/repo/pull/123`
+• "Review PR #456 against JIRA requirements"
+• "Does PR #789 meet code quality standards?"
 
-**Getting Examples:**
-• "Show me how to use the cache service"
-• "Give me an example of error handling"
-• "How do I call the user API?"
+**Progress Reports:**
+• "Sprint progress for AND-123, AND-124, AND-125"
+• "How many tasks are completed this sprint?"
+• "Show me blocked tasks"
 
-**Checking Implementation:**
-• "How is rate limiting implemented?"
-• "Where is the database configured?"
-• "What logging framework is used?"
+**Requirements Verification:**
+• "Does PR #456 meet AND-123 requirements?"
+• "Verify feature completeness for AND-789"
+• "Check if implementation matches specifications"
 
-## My Tools
+## My Tools & Capabilities
 
-I have access to:
-• **search_documents** - Search project documentation and specs
-• **find_file** - Locate source files by pattern
-• **read_file** - Read and analyze source code
-
-## Source Code Location
-
-Your project source is in: `project-source/`
-
-I'll search through this directory to find implementations, read code, and provide accurate answers based on your actual codebase.
+✅ **JIRA Integration** - Fetch tasks, requirements, acceptance criteria
+✅ **GitHub Integration** - Monitor PRs, reviews, merge status
+✅ **Git Operations** - Review code diffs for PR assessment
+✅ **RAG Documentation Search** - Access project specs and docs
+✅ **Code Quality Checks** - Apply standards from promts/rules.md
 
 ## How I Work
 
-1. **Search documentation first** to understand the feature design
-2. **Find relevant files** using patterns and names
-3. **Read the source code** to see actual implementation
-4. **Explain with examples** using real code from your project
-5. **Cite sources** so you know where information comes from
+1. **Fetch requirements** from JIRA automatically
+2. **Get PR details** from GitHub automatically
+3. **Review code changes** against requirements
+4. **Check quality standards** per promts/rules.md
+5. **Identify issues** with severity levels (Critical/Major/Minor)
+6. **Provide decisions** with clear rationale and next steps
 
-**Every answer is specific to YOUR codebase** - I don't guess or provide generic solutions!
+**I'm autonomous** - I automatically fetch all needed data without asking permission!
+
+## Review Criteria
+
+Every PR review includes:
+• ✅ Requirements compliance (JIRA acceptance criteria)
+• ✅ Code quality (Kotlin conventions, naming, structure)
+• ✅ Security assessment (no secrets, input validation, error handling)
+• ✅ Testing coverage (unit tests, edge cases)
+• ✅ Documentation updates
+• ✅ Performance considerations
+
+## Configuration Status
+
+Your environment:
+• ✅ JIRA: Connected to inv.atlassian.net
+• ✅ GitHub: Token configured (private repos access)
+• ✅ RAG: OpenAI embeddings enabled
+• ✅ Code Standards: promts/rules.md available
+• ⚠️ Git Ops: Requires PROJECT_SOURCE_DIR in .env
+
+Ready to help manage your project!
 
 ---
 
-*Example questions:*
-• "What features are documented?"
-• "Show me the project structure"
-• "How does [your feature] work?"
-• "Find the [component name] implementation"
+*Try these:*
+• `/review-pr [GitHub PR URL]`
+• "Status of AND-123"
+• "Sprint progress report"
